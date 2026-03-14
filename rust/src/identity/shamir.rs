@@ -20,16 +20,21 @@ pub type Shard = Vec<u8>;
 
 pub struct ShamirVault {
     threshold: u8,
-    total:     u8,
+    total: u8,
 }
 
 impl Default for ShamirVault {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ShamirVault {
     pub fn new() -> Self {
-        ShamirVault { threshold: 3, total: 5 }
+        ShamirVault {
+            threshold: 3,
+            total: 5,
+        }
     }
 
     /// Разделить ключ на шарды (sharks 0.5.0 API)
@@ -40,12 +45,12 @@ impl ShamirVault {
 
         // ✅ sharks 0.5: кортежная структура, не ::new()
         let sharks = Sharks(self.threshold);
-        
+
         // ✅ sharks 0.5: метод dealer() возвращает Iterator<Item=Share>
         let shards: Vec<Shard> = sharks
             .dealer(key_bytes.as_slice())
             .take(self.total as usize)
-            .map(|share| Vec::from(&share))  // ✅ Официальный API: Share → Vec<u8>
+            .map(|share| Vec::from(&share)) // ✅ Официальный API: Share → Vec<u8>
             .collect();
 
         Ok(shards)
