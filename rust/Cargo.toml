@@ -1,0 +1,57 @@
+[package]
+name = "root_identity"
+version = "0.1.0"
+edition = "2024"
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(frb_expand)'] }
+
+[lib]
+name = "root_core"
+crate-type = ["cdylib", "staticlib"]
+path = "src/lib.rs"
+
+# ── Исполняемые файлы ────────────────────────────────────────
+
+[[bin]]
+name = "root-cli"
+path = "src/cli/main.rs"
+
+# ── Зависимости ──────────────────────────────────────────────
+
+[dependencies]
+# Криптография
+bip39          = "2.0"
+ed25519-dalek  = { version = "2.0", features = ["rand_core"] }
+rand           = { version = "0.8", features = ["getrandom"] }
+zeroize        = { version = "1.6", features = ["derive"] }
+sharks         = "0.3"
+
+# Flutter мост
+flutter_rust_bridge = "2.11.1"
+
+# P2P сеть
+libp2p = { version = "0.53", features = [
+    "tcp", "noise", "yamux", "gossipsub", "mdns", "tokio", "macros"
+]}
+tokio   = { version = "1", features = ["full"] }
+futures = "0.3"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Сериализация
+serde      = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Утилиты
+sha2       = "0.10"
+hex        = "0.4"
+thiserror  = "1.0"
+
+# База данных
+rusqlite = { version = "0.31", features = ["bundled"] }
+argon2   = "0.5"
+
+# Разное
+lazy_static = "1.4"
+clap        = { version = "4", features = ["derive"] }

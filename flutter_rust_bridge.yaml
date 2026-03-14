@@ -1,0 +1,10 @@
+# flutter_rust_bridge.yaml
+rust_input: "rust/src/api/m.rs"         # Путь к твоему Rust API
+dart_output: "lib/src/rust/frb_generated.dart"
+rust_output: "rust/src/frb_generated/mod.rs"
+dart_decl_output: "lib/src/rust/frb_generated.io.dart"
+
+rust_root: "rust"
+dart_output: "lib/src/rust/frb_generated.dart"
+rust_output: "rust/src/frb_generated.rs"
+dart_decl_output: "lib/src/rust/frb_generated.io.dart"
