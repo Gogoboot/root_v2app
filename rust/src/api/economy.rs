@@ -137,11 +137,13 @@ pub fn get_vesting_info() -> Result<Option<VestingInfo>, ApiError> {
         let locked = v.total_drops.saturating_sub(available);
         let pct = available as f64 / v.total_drops as f64 * 100.0;
         let days_passed = (now_secs() - v.grant_timestamp) / 86400;
-        let days_until_full = if days_passed >= 365 {
-            0
-        } else {
-            365 - days_passed
-        };
+        let days_until_full = 365_u64.saturating_sub(days_passed);
+
+        // let days_until_full = if days_passed >= 365 {
+        //     0
+        // } else {
+        //     365 - days_passed
+        // };
 
         VestingInfo {
             total_sap: v.total_drops as f64 / DROPS_PER_SAP as f64,

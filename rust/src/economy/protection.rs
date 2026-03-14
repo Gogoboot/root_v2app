@@ -101,6 +101,12 @@ pub struct AnomalyDetector {
     pub genesis_then_sold: bool,
 }
 
+impl Default for AnomalyDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AnomalyDetector {
     pub fn new() -> Self {
         AnomalyDetector {
@@ -176,6 +182,12 @@ pub struct PersonhoodRegistry {
     pub ip_claims: HashMap<String, u32>,
     /// Device fingerprint → количество Genesis бонусов
     pub device_claims: HashMap<String, u32>,
+}
+
+impl Default for PersonhoodRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PersonhoodRegistry {

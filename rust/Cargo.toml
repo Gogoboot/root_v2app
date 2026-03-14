@@ -25,7 +25,7 @@ bip39          = "2.0"
 ed25519-dalek  = { version = "2.0", features = ["rand_core"] }
 rand           = { version = "0.8", features = ["getrandom"] }
 zeroize        = { version = "1.6", features = ["derive"] }
-sharks         = "0.3"
+sharks         = "0.5"
 
 # Flutter мост
 flutter_rust_bridge = "2.11.1"

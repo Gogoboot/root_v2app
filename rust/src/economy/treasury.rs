@@ -28,6 +28,12 @@ pub struct Treasury {
     pub last_price_ts: u64,
 }
 
+impl Default for Treasury {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Treasury {
     pub fn new() -> Self {
         Treasury {

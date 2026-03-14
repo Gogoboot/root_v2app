@@ -31,6 +31,12 @@ pub struct Ledger {
     pub personhood: PersonhoodRegistry,
 }
 
+impl Default for Ledger {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Ledger {
     pub fn new() -> Self {
         Ledger {
@@ -195,10 +201,13 @@ impl Ledger {
         // Vesting проверка
         {
             let acc = self.get_or_create(from);
-            if let Some(vesting) = &mut acc.vesting {
-                if !vesting.is_fully_unlocked() {
-                    vesting.spend(amount_drops)?;
-                }
+            if let Some(vesting) = &mut acc.vesting
+                && !vesting.is_fully_unlocked()
+            {
+                vesting.spend(amount_drops)?;
+
+                // if !vesting.is_fully_unlocked() {
+                //     vesting.spend(amount_drops)?;
             }
         }
 
@@ -311,9 +320,8 @@ impl Ledger {
             });
         }
 
-        let base = ((relayed_bytes / 10_240) * 100)
-            .max(1)
-            .min(MAX_RELAY_REWARD_DROPS);
+        let base = ((relayed_bytes / 10_240) * 100).clamp(1, MAX_RELAY_REWARD_DROPS);
+
         let multiplier = self.treasury.reward_multiplier(self.total_supply_drops);
         let reward = (base as f64 * multiplier) as u64;
         if reward == 0 {

@@ -72,7 +72,7 @@ impl VestingSchedule {
         if days_passed >= 365 {
             0
         } else {
-            365 - days_passed
+            365_u64.saturating_sub(days_passed)
         }
     }
 

@@ -10,6 +10,12 @@ pub struct MerkleTree {
     pub leaves: Vec<[u8; 32]>,
 }
 
+impl Default for MerkleTree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MerkleTree {
     pub fn new() -> Self {
         MerkleTree { leaves: Vec::new() }
@@ -64,7 +70,7 @@ impl MerkleTree {
         let mut index = leaf_index;
 
         while current_level.len() > 1 {
-            let sibling_index = if index % 2 == 0 {
+            let sibling_index = if index.is_multiple_of(2) {
                 (index + 1).min(current_level.len() - 1)
             } else {
                 index - 1
@@ -105,7 +111,7 @@ impl MerkleTree {
 
         for sibling in proof {
             let mut hasher = Sha256::new();
-            if index % 2 == 0 {
+            if index.is_multiple_of(2) {
                 hasher.update(current);
                 hasher.update(sibling);
             } else {
@@ -121,5 +127,9 @@ impl MerkleTree {
 
     pub fn len(&self) -> usize {
         self.leaves.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.leaves.is_empty()
     }
 }

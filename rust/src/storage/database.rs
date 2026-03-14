@@ -114,11 +114,7 @@ impl Database {
 
         self.merkle.add_leaf(hash);
 
-        let root = self
-            .merkle
-            .root()
-            .map(|r| hex::encode(r))
-            .unwrap_or_default();
+        let root = self.merkle.root().map(hex::encode).unwrap_or_default();
         conn.execute(
             "INSERT INTO merkle_roots (root_hash, msg_count, timestamp) VALUES (?1, ?2, ?3)",
             params![root, self.merkle.len() as i64, now_secs() as i64],
