@@ -19,7 +19,7 @@ pub enum MessagesAction {
 
 pub async fn run(action: MessagesAction) -> Result<(), Box<dyn std::error::Error>> {
     match action {
-        MessagesAction::List              => cmd_list(),
+        MessagesAction::List => cmd_list(),
         MessagesAction::Send { to, text } => cmd_send(to, text),
     }
     Ok(())

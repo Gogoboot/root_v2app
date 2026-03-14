@@ -17,12 +17,15 @@ pub enum ShamirError {
 /// Для восстановления достаточно любых 3 из 5
 pub struct ShamirVault {
     threshold: u8,
-    total:     u8,
+    total: u8,
 }
 
 impl ShamirVault {
     pub fn new() -> Self {
-        ShamirVault { threshold: 3, total: 5 }
+        ShamirVault {
+            threshold: 3,
+            total: 5,
+        }
     }
 
     /// Разделить ключ на 5 шардов
@@ -39,7 +42,7 @@ impl ShamirVault {
     pub fn recover(&self, shares: &[Vec<u8>]) -> Result<[u8; 32], ShamirError> {
         if shares.len() < self.threshold as usize {
             return Err(ShamirError::NotEnoughShares {
-                got:  shares.len(),
+                got: shares.len(),
                 need: self.threshold as usize,
             });
         }

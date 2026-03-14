@@ -14,20 +14,19 @@
 //   utils      — version, verify, validate
 // ============================================================
 
-pub mod types;
-pub mod state;
-pub mod identity;
-pub mod database;
-pub mod messaging;
 pub mod contacts;
+pub mod database;
 pub mod economy;
+pub mod identity;
+pub mod messaging;
 pub mod p2p;
+pub mod state;
+pub mod types;
 pub mod utils;
 
 // ── Реэкспорт ────────────────────────────────────────────────
 pub use types::{
-    ApiError, IdentityInfo, BalanceInfo, MessageInfo,
-    NodeStatus, VestingInfo, TxResult, P2pWarning,
+    ApiError, BalanceInfo, IdentityInfo, MessageInfo, NodeStatus, P2pWarning, TxResult, VestingInfo,
 };
 
 // ── Единая точка входа для flutter_rust_bridge ───────────────

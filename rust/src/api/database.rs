@@ -17,8 +17,8 @@ pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiErr
         return Err(ApiError::PanicActivated);
     }
 
-    let db = Database::open(&db_path, &password)
-        .map_err(|e| ApiError::StorageError(e.to_string()))?;
+    let db =
+        Database::open(&db_path, &password).map_err(|e| ApiError::StorageError(e.to_string()))?;
 
     db.initialize()
         .map_err(|e| ApiError::StorageError(e.to_string()))?;
@@ -47,8 +47,8 @@ pub fn panic_button() -> Result<(), ApiError> {
     }
 
     *CURRENT_IDENTITY.lock().unwrap() = None;
-    *CURRENT_LEDGER.lock().unwrap()   = None;
-    *CURRENT_DB.lock().unwrap()       = None;
+    *CURRENT_LEDGER.lock().unwrap() = None;
+    *CURRENT_DB.lock().unwrap() = None;
 
     println!("  ✅ Все данные уничтожены. Перезапусти приложение.");
     Err(ApiError::PanicActivated)
@@ -56,7 +56,7 @@ pub fn panic_button() -> Result<(), ApiError> {
 
 pub fn verify_db_integrity() -> Result<bool, ApiError> {
     let db_guard = CURRENT_DB.lock().unwrap();
-    let db       = db_guard.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
+    let db = db_guard.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     db.verify_integrity()
         .map_err(|e| ApiError::StorageError(e.to_string()))
 }

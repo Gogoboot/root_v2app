@@ -62,15 +62,15 @@ pub enum EconomyError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Transaction {
     /// Уникальный ID транзакции (SHA256 hash)
-    pub id:           String,
-    pub from:         String,
-    pub to:           String,
+    pub id: String,
+    pub from: String,
+    pub to: String,
     pub amount_drops: u64,
-    pub fee_drops:    u64,
+    pub fee_drops: u64,
     /// Сожжено при P2P обмене
     pub burned_drops: u64,
-    pub tx_type:      TxType,
-    pub timestamp:    u64,
+    pub tx_type: TxType,
+    pub timestamp: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,7 +80,10 @@ pub enum TxType {
     /// P2P обмен (серый рынок — с предупреждением)
     P2PExchange,
     /// Вознаграждение за relay
-    RelayReward { relayed_bytes: u64, witnesses: Vec<String> },
+    RelayReward {
+        relayed_bytes: u64,
+        witnesses: Vec<String>,
+    },
     /// Вознаграждение свидетелю
     WitnessReward { relay_tx_id: String },
     /// Заморозка stake

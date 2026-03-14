@@ -4,14 +4,12 @@
 // ============================================================
 
 use futures::StreamExt;
-use libp2p::{
-    gossipsub, mdns, noise, swarm::SwarmEvent, tcp, yamux, SwarmBuilder,
-};
+use libp2p::{SwarmBuilder, gossipsub, mdns, noise, swarm::SwarmEvent, tcp, yamux};
 use std::time::Duration;
 use tokio::select;
 use tracing::{info, warn};
 
-use super::behaviour::{build_gossipsub, RootBehaviour, RootBehaviourEvent, ROOT_TOPIC};
+use super::behaviour::{ROOT_TOPIC, RootBehaviour, RootBehaviourEvent, build_gossipsub};
 
 /// Запустить интерактивный P2P узел
 /// Читает сообщения из stdin, выводит входящие в stdout
@@ -19,7 +17,7 @@ pub async fn start_node() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
     info!("🚀 Запуск ROOT узла...");
 
-    let local_key     = libp2p::identity::Keypair::generate_ed25519();
+    let local_key = libp2p::identity::Keypair::generate_ed25519();
     let local_peer_id = local_key.public().to_peer_id();
     info!("📋 Мой PeerId: {}", local_peer_id);
 
@@ -27,17 +25,17 @@ pub async fn start_node() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut swarm = SwarmBuilder::with_existing_identity(local_key.clone())
         .with_tokio()
-        .with_tcp(tcp::Config::default(), noise::Config::new, yamux::Config::default)?
+        .with_tcp(
+            tcp::Config::default(),
+            noise::Config::new,
+            yamux::Config::default,
+        )?
         .with_behaviour(|key| {
-            let mdns = mdns::tokio::Behaviour::new(
-                mdns::Config::default(),
-                key.public().to_peer_id(),
-            )?;
+            let mdns =
+                mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
             Ok(RootBehaviour { gossipsub, mdns })
         })?
-        .with_swarm_config(|cfg| {
-            cfg.with_idle_connection_timeout(Duration::from_secs(60))
-        })
+        .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(60)))
         .build();
 
     let topic = gossipsub::IdentTopic::new(ROOT_TOPIC);
@@ -100,7 +98,7 @@ pub async fn start_node() -> Result<(), Box<dyn std::error::Error>> {
 async fn read_stdin() -> Result<String, tokio::io::Error> {
     use tokio::io::AsyncBufReadExt;
     let mut reader = tokio::io::BufReader::new(tokio::io::stdin());
-    let mut line   = String::new();
+    let mut line = String::new();
     reader.read_line(&mut line).await?;
     Ok(line.trim().to_string())
 }

@@ -22,7 +22,7 @@ pub enum DbAction {
 pub async fn run(action: DbAction) -> Result<(), Box<dyn std::error::Error>> {
     match action {
         DbAction::Unlock { password, path } => cmd_unlock(password, path),
-        DbAction::Verify                    => cmd_verify(),
+        DbAction::Verify => cmd_verify(),
     }
     Ok(())
 }

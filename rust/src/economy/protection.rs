@@ -11,9 +11,9 @@ use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::constants::{
-    ANOMALY_FREEZE_SECONDS, ANOMALY_SELL_PCT_THRESHOLD, DROPS_PER_SAP,
-    MAX_GENESIS_PER_DEVICE, MAX_GENESIS_PER_IP, VELOCITY_LIMIT_DROPS_PER_DAY,
-    VELOCITY_LIMIT_DROPS_PER_MONTH, VELOCITY_LIMIT_DROPS_PER_WEEK,
+    ANOMALY_FREEZE_SECONDS, ANOMALY_SELL_PCT_THRESHOLD, DROPS_PER_SAP, MAX_GENESIS_PER_DEVICE,
+    MAX_GENESIS_PER_IP, VELOCITY_LIMIT_DROPS_PER_DAY, VELOCITY_LIMIT_DROPS_PER_MONTH,
+    VELOCITY_LIMIT_DROPS_PER_WEEK,
 };
 use super::types::EconomyError;
 
@@ -22,23 +22,23 @@ use super::types::EconomyError;
 /// Счётчик скорости продаж — защита от dump атак
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct VelocityTracker {
-    pub sold_today_drops:  u64,
-    pub sold_week_drops:   u64,
-    pub sold_month_drops:  u64,
-    pub day_reset_ts:      u64,
-    pub week_reset_ts:     u64,
-    pub month_reset_ts:    u64,
+    pub sold_today_drops: u64,
+    pub sold_week_drops: u64,
+    pub sold_month_drops: u64,
+    pub day_reset_ts: u64,
+    pub week_reset_ts: u64,
+    pub month_reset_ts: u64,
 }
 
 impl VelocityTracker {
     pub fn new() -> Self {
         let now = now_secs();
         VelocityTracker {
-            sold_today_drops:  0,
-            sold_week_drops:   0,
-            sold_month_drops:  0,
-            day_reset_ts:   now,
-            week_reset_ts:  now,
+            sold_today_drops: 0,
+            sold_week_drops: 0,
+            sold_month_drops: 0,
+            day_reset_ts: now,
+            week_reset_ts: now,
             month_reset_ts: now,
         }
     }
@@ -48,9 +48,18 @@ impl VelocityTracker {
         let now = now_secs();
 
         // Сброс счётчиков по истечении периода
-        if now - self.day_reset_ts   >= 86400     { self.sold_today_drops = 0; self.day_reset_ts = now; }
-        if now - self.week_reset_ts  >= 604800    { self.sold_week_drops = 0;  self.week_reset_ts = now; }
-        if now - self.month_reset_ts >= 2_592_000 { self.sold_month_drops = 0; self.month_reset_ts = now; }
+        if now - self.day_reset_ts >= 86400 {
+            self.sold_today_drops = 0;
+            self.day_reset_ts = now;
+        }
+        if now - self.week_reset_ts >= 604800 {
+            self.sold_week_drops = 0;
+            self.week_reset_ts = now;
+        }
+        if now - self.month_reset_ts >= 2_592_000 {
+            self.sold_month_drops = 0;
+            self.month_reset_ts = now;
+        }
 
         // Проверка дневного лимита
         if self.sold_today_drops + amount > VELOCITY_LIMIT_DROPS_PER_DAY {
@@ -72,9 +81,9 @@ impl VelocityTracker {
         }
 
         // Регистрируем
-        self.sold_today_drops  += amount;
-        self.sold_week_drops   += amount;
-        self.sold_month_drops  += amount;
+        self.sold_today_drops += amount;
+        self.sold_week_drops += amount;
+        self.sold_month_drops += amount;
         Ok(())
     }
 }
@@ -95,8 +104,8 @@ pub struct AnomalyDetector {
 impl AnomalyDetector {
     pub fn new() -> Self {
         AnomalyDetector {
-            frozen_until:      0,
-            recent_sales:      Vec::new(),
+            frozen_until: 0,
+            recent_sales: Vec::new(),
             genesis_then_sold: false,
         }
     }
@@ -172,18 +181,14 @@ pub struct PersonhoodRegistry {
 impl PersonhoodRegistry {
     pub fn new() -> Self {
         PersonhoodRegistry {
-            ip_claims:     HashMap::new(),
+            ip_claims: HashMap::new(),
             device_claims: HashMap::new(),
         }
     }
 
     /// Проверить и зарегистрировать Genesis бонус для устройства
-    pub fn check_and_register(
-        &mut self,
-        ip: &str,
-        device_id: &str,
-    ) -> Result<(), EconomyError> {
-        let ip_count     = self.ip_claims.get(ip).copied().unwrap_or(0);
+    pub fn check_and_register(&mut self, ip: &str, device_id: &str) -> Result<(), EconomyError> {
+        let ip_count = self.ip_claims.get(ip).copied().unwrap_or(0);
         let device_count = self.device_claims.get(device_id).copied().unwrap_or(0);
 
         if ip_count >= MAX_GENESIS_PER_IP {
@@ -193,7 +198,7 @@ impl PersonhoodRegistry {
             return Err(EconomyError::PersonhoodViolation);
         }
 
-        *self.ip_claims.entry(ip.to_string()).or_insert(0)             += 1;
+        *self.ip_claims.entry(ip.to_string()).or_insert(0) += 1;
         *self.device_claims.entry(device_id.to_string()).or_insert(0) += 1;
         Ok(())
     }

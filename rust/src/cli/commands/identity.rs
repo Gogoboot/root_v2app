@@ -19,9 +19,9 @@ pub enum IdentityAction {
 
 pub async fn run(action: IdentityAction) -> Result<(), Box<dyn std::error::Error>> {
     match action {
-        IdentityAction::Generate  => cmd_generate(),
+        IdentityAction::Generate => cmd_generate(),
         IdentityAction::Restore { mnemonic } => cmd_restore(mnemonic),
-        IdentityAction::Show      => cmd_show(),
+        IdentityAction::Show => cmd_show(),
     }
     Ok(())
 }
@@ -29,19 +29,18 @@ pub async fn run(action: IdentityAction) -> Result<(), Box<dyn std::error::Error
 fn cmd_generate() {
     use bip39::Mnemonic;
     use ed25519_dalek::SigningKey;
-    use rand::rngs::OsRng;
     use rand::RngCore;
+    use rand::rngs::OsRng;
 
     println!("🔑 Генерируем новую идентичность...\n");
 
-    let signing_key   = SigningKey::generate(&mut OsRng);
+    let signing_key = SigningKey::generate(&mut OsRng);
     let verifying_key = signing_key.verifying_key();
-    let public_key    = hex::encode(verifying_key.as_bytes());
+    let public_key = hex::encode(verifying_key.as_bytes());
 
     let mut entropy = [0u8; 32];
     OsRng.fill_bytes(&mut entropy);
-    let mnemonic = Mnemonic::from_entropy(&entropy)
-        .expect("Ошибка генерации мнемоники");
+    let mnemonic = Mnemonic::from_entropy(&entropy).expect("Ошибка генерации мнемоники");
 
     println!("✅ Публичный ключ:");
     println!("   {}\n", public_key);
@@ -59,12 +58,12 @@ fn cmd_restore(mnemonic: String) {
     match mnemonic.parse::<Mnemonic>() {
         Ok(parsed) => {
             let entropy = parsed.to_entropy();
-            let seed    = &entropy[..32.min(entropy.len())];
+            let seed = &entropy[..32.min(entropy.len())];
             let mut key_bytes = [0u8; 32];
             key_bytes[..seed.len()].copy_from_slice(seed);
-            let signing_key   = SigningKey::from_bytes(&key_bytes);
+            let signing_key = SigningKey::from_bytes(&key_bytes);
             let verifying_key = signing_key.verifying_key();
-            let public_key    = hex::encode(verifying_key.as_bytes());
+            let public_key = hex::encode(verifying_key.as_bytes());
 
             println!("✅ Публичный ключ восстановлен:");
             println!("   {}", public_key);

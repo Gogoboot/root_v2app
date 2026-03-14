@@ -14,7 +14,7 @@ use std::time::Duration;
 #[derive(libp2p::swarm::NetworkBehaviour)]
 pub struct RootBehaviour {
     pub gossipsub: gossipsub::Behaviour,
-    pub mdns:      mdns::tokio::Behaviour,
+    pub mdns: mdns::tokio::Behaviour,
 }
 
 /// Создать Gossipsub с настройками ROOT

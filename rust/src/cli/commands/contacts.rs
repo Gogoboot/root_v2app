@@ -20,7 +20,7 @@ pub enum ContactsAction {
 pub async fn run(action: ContactsAction) -> Result<(), Box<dyn std::error::Error>> {
     match action {
         ContactsAction::Add { key, name } => cmd_add(key, name),
-        ContactsAction::List              => cmd_list(),
+        ContactsAction::List => cmd_list(),
     }
     Ok(())
 }

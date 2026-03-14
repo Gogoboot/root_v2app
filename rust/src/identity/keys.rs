@@ -5,8 +5,8 @@
 
 use bip39::{Language, Mnemonic};
 use ed25519_dalek::{SigningKey, VerifyingKey};
-use rand::rngs::OsRng;
 use rand::RngCore;
+use rand::rngs::OsRng;
 use zeroize::Zeroize;
 
 use super::seed::SecretSeed;
@@ -37,15 +37,18 @@ impl Identity {
     /// Восстановление из мнемоники (24 слова)
     pub fn from_mnemonic(mnemonic: &Mnemonic) -> Self {
         let seed_bytes = mnemonic.to_seed("ROOT_v2");
-        let mut seed   = SecretSeed(seed_bytes);
+        let mut seed = SecretSeed(seed_bytes);
 
         let key_bytes: [u8; 32] = seed.0[..32].try_into().unwrap();
-        let signing_key   = SigningKey::from_bytes(&key_bytes);
+        let signing_key = SigningKey::from_bytes(&key_bytes);
         let verifying_key = signing_key.verifying_key();
 
         seed.zeroize();
 
-        Identity { signing_key, verifying_key }
+        Identity {
+            signing_key,
+            verifying_key,
+        }
     }
 
     /// Подписать сообщение приватным ключом

@@ -8,12 +8,12 @@
 //   protected — ProtectedKey (XOR маскировка в памяти)
 // ============================================================
 
-pub mod seed;
 pub mod keys;
-pub mod shamir;
 pub mod protected;
+pub mod seed;
+pub mod shamir;
 
-pub use seed::SecretSeed;
 pub use keys::Identity;
-pub use shamir::{ShamirVault, ShamirError};
 pub use protected::ProtectedKey;
+pub use seed::SecretSeed;
+pub use shamir::{ShamirError, ShamirVault};

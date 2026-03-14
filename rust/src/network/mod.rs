@@ -8,8 +8,8 @@
 // ============================================================
 
 pub mod behaviour;
-pub mod node;
 pub mod channels;
+pub mod node;
 
 pub use behaviour::{RootBehaviour, RootBehaviourEvent};
-pub use channels::{start_node_channels, P2pMessage};
+pub use channels::{P2pMessage, start_node_channels};

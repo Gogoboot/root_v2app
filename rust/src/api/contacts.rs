@@ -6,9 +6,9 @@
 
 use crate::storage::Contact;
 
+use super::messaging::now_secs;
 use super::state::CURRENT_DB;
 use super::types::ApiError;
-use super::messaging::now_secs;
 
 pub fn add_contact(public_key: String, nickname: String) -> Result<(), ApiError> {
     // Валидация публичного ключа
@@ -19,12 +19,12 @@ pub fn add_contact(public_key: String, nickname: String) -> Result<(), ApiError>
     }
 
     let db_guard = CURRENT_DB.lock().unwrap();
-    let db       = db_guard.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
+    let db = db_guard.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
 
     db.add_contact(&Contact {
         public_key,
         nickname,
-        added_at:   now_secs(),
+        added_at: now_secs(),
         reputation: 50,
     })
     .map_err(|e| ApiError::StorageError(e.to_string()))
@@ -32,7 +32,7 @@ pub fn add_contact(public_key: String, nickname: String) -> Result<(), ApiError>
 
 pub fn get_contacts() -> Result<Vec<Contact>, ApiError> {
     let db_guard = CURRENT_DB.lock().unwrap();
-    let db       = db_guard.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
+    let db = db_guard.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     db.get_contacts()
         .map_err(|e| ApiError::StorageError(e.to_string()))
 }

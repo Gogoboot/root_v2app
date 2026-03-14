@@ -69,7 +69,11 @@ impl VestingSchedule {
     /// Дней до полной разблокировки
     pub fn days_until_full(&self) -> u64 {
         let days_passed = (now_secs() - self.grant_timestamp) / 86400;
-        if days_passed >= 365 { 0 } else { 365 - days_passed }
+        if days_passed >= 365 {
+            0
+        } else {
+            365 - days_passed
+        }
     }
 
     /// Заблокировано SAP (для UI)

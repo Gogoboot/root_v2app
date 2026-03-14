@@ -13,43 +13,43 @@ use super::vesting::VestingSchedule;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
-    pub public_key:           String,
-    pub balance_drops:        u64,
-    pub staked_drops:         u64,
-    pub reputation:           u8,
-    pub offense_count:        u8,
-    pub is_banned:            bool,
-    pub tx_history:           Vec<String>,
-    pub last_tx_timestamp:    u64,
+    pub public_key: String,
+    pub balance_drops: u64,
+    pub staked_drops: u64,
+    pub reputation: u8,
+    pub offense_count: u8,
+    pub is_banned: bool,
+    pub tx_history: Vec<String>,
+    pub last_tx_timestamp: u64,
     pub tx_count_this_second: u32,
-    pub genesis_claimed:      bool,
+    pub genesis_claimed: bool,
     /// Vesting расписание (если получал Genesis)
-    pub vesting:              Option<VestingSchedule>,
+    pub vesting: Option<VestingSchedule>,
     /// Трекер скорости продаж
-    pub velocity:             VelocityTracker,
+    pub velocity: VelocityTracker,
     /// Детектор аномалий
-    pub anomaly:              AnomalyDetector,
+    pub anomaly: AnomalyDetector,
     /// Timestamp получения Genesis
-    pub genesis_timestamp:    Option<u64>,
+    pub genesis_timestamp: Option<u64>,
 }
 
 impl Account {
     pub fn new(public_key: String) -> Self {
         Account {
             public_key,
-            balance_drops:        0,
-            staked_drops:         0,
-            reputation:           50,
-            offense_count:        0,
-            is_banned:            false,
-            tx_history:           Vec::new(),
-            last_tx_timestamp:    0,
+            balance_drops: 0,
+            staked_drops: 0,
+            reputation: 50,
+            offense_count: 0,
+            is_banned: false,
+            tx_history: Vec::new(),
+            last_tx_timestamp: 0,
             tx_count_this_second: 0,
-            genesis_claimed:      false,
-            vesting:              None,
-            velocity:             VelocityTracker::new(),
-            anomaly:              AnomalyDetector::new(),
-            genesis_timestamp:    None,
+            genesis_claimed: false,
+            vesting: None,
+            velocity: VelocityTracker::new(),
+            anomaly: AnomalyDetector::new(),
+            genesis_timestamp: None,
         }
     }
 
@@ -72,7 +72,9 @@ impl Account {
         }
         self.tx_count_this_second += 1;
         if self.tx_count_this_second > MAX_TXS_PER_SECOND {
-            return Err(EconomyError::RateLimitExceeded { max: MAX_TXS_PER_SECOND });
+            return Err(EconomyError::RateLimitExceeded {
+                max: MAX_TXS_PER_SECOND,
+            });
         }
         Ok(())
     }

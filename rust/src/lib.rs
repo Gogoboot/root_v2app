@@ -58,38 +58,31 @@ mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be
 //      db.rs           — unlock, verify
 // ============================================================
 
-pub mod identity;
-pub mod storage;
-pub mod network;
-pub mod economy;
 pub mod api;
+pub mod economy;
+pub mod identity;
+pub mod network;
+pub mod storage;
 
 // transport — алиас для обратной совместимости с flutter_rust_bridge
 pub use network::channels as transport;
 
 // ── Реэкспорт ключевых типов ─────────────────────────────────
 
-pub use identity::{Identity, SecretSeed, ShamirVault, ProtectedKey};
+pub use identity::{Identity, ProtectedKey, SecretSeed, ShamirVault};
 
-pub use storage::{
-    Database, Message, Contact,
-    MerkleTree, StorageKey, PanicButton, StorageError,
-};
+pub use storage::{Contact, Database, MerkleTree, Message, PanicButton, StorageError, StorageKey};
 
 pub use economy::{
-    Ledger, Account, Transaction, TxType,
-    Treasury, VestingSchedule, VelocityTracker,
-    AnomalyDetector, EconomyError, DROPS_PER_SAP,
+    Account, AnomalyDetector, DROPS_PER_SAP, EconomyError, Ledger, Transaction, Treasury, TxType,
+    VelocityTracker, VestingSchedule,
 };
 
-pub use api::{
-    RootApi, ApiError, IdentityInfo, BalanceInfo,
-    MessageInfo, NodeStatus, VestingInfo,
-};
+pub use api::{ApiError, BalanceInfo, IdentityInfo, MessageInfo, NodeStatus, RootApi, VestingInfo};
 
 // ── Константы ────────────────────────────────────────────────
 
-pub const VERSION:    &str = "2.0.0-alpha";
+pub const VERSION: &str = "2.0.0-alpha";
 pub const BUILD_DATE: &str = "2026-03";
 pub const NETWORK_ID: &str = "root-mainnet-v2";
 

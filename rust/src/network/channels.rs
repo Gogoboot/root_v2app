@@ -4,13 +4,11 @@
 // ============================================================
 
 use futures::StreamExt;
-use libp2p::{
-    gossipsub, mdns, noise, swarm::SwarmEvent, tcp, yamux, SwarmBuilder,
-};
+use libp2p::{SwarmBuilder, gossipsub, mdns, noise, swarm::SwarmEvent, tcp, yamux};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
 
-use super::behaviour::{build_gossipsub, RootBehaviour, RootBehaviourEvent, ROOT_TOPIC};
+use super::behaviour::{ROOT_TOPIC, RootBehaviour, RootBehaviourEvent, build_gossipsub};
 
 /// Входящее P2P сообщение — передаётся во Flutter
 #[derive(Debug, Clone)]
@@ -18,7 +16,7 @@ pub struct P2pMessage {
     /// Публичный ключ отправителя (hex) или PeerID
     pub from_peer: String,
     /// Текст сообщения
-    pub content:   String,
+    pub content: String,
     /// Unix timestamp
     pub timestamp: u64,
 }
@@ -32,27 +30,28 @@ pub struct P2pMessage {
 ///   receiver — канал для получения входящих сообщений (P2P → Flutter)
 pub async fn start_node_channels(
     key_bytes: [u8; 32],
-) -> Result<
-    (mpsc::Sender<String>, mpsc::Receiver<P2pMessage>),
-    Box<dyn std::error::Error>,
-> {
+) -> Result<(mpsc::Sender<String>, mpsc::Receiver<P2pMessage>), Box<dyn std::error::Error>> {
     let (tx_out, mut rx_out) = mpsc::channel::<String>(100);
-    let (tx_in,  rx_in)     = mpsc::channel::<P2pMessage>(100);
-    let tx_in_clone          = tx_in.clone();
+    let (tx_in, rx_in) = mpsc::channel::<P2pMessage>(100);
+    let tx_in_clone = tx_in.clone();
 
     tokio::spawn(async move {
         // Конвертируем Ed25519 байты → libp2p Keypair
         let secret = libp2p::identity::ed25519::SecretKey::try_from_bytes(key_bytes)
             .expect("Неверный Ed25519 ключ");
-        let ed_keypair  = libp2p::identity::ed25519::Keypair::from(secret);
-        let local_key   = libp2p::identity::Keypair::from(ed_keypair);
-        let local_peer  = local_key.public().to_peer_id();
+        let ed_keypair = libp2p::identity::ed25519::Keypair::from(secret);
+        let local_key = libp2p::identity::Keypair::from(ed_keypair);
+        let local_peer = local_key.public().to_peer_id();
 
         let gossipsub = build_gossipsub(&local_key);
 
         let mut swarm = SwarmBuilder::with_existing_identity(local_key.clone())
             .with_tokio()
-            .with_tcp(tcp::Config::default(), noise::Config::new, yamux::Config::default)
+            .with_tcp(
+                tcp::Config::default(),
+                noise::Config::new,
+                yamux::Config::default,
+            )
             .expect("TCP error")
             .with_behaviour(|key| {
                 let mdns = mdns::tokio::Behaviour::new(
@@ -62,14 +61,14 @@ pub async fn start_node_channels(
                 Ok(RootBehaviour { gossipsub, mdns })
             })
             .expect("Behaviour error")
-            .with_swarm_config(|cfg| {
-                cfg.with_idle_connection_timeout(Duration::from_secs(60))
-            })
+            .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(60)))
             .build();
 
         let topic = gossipsub::IdentTopic::new(ROOT_TOPIC);
         swarm.behaviour_mut().gossipsub.subscribe(&topic).unwrap();
-        swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap()).unwrap();
+        swarm
+            .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
+            .unwrap();
 
         println!("  🚀 P2P узел запущен | PeerID: {}", local_peer);
 

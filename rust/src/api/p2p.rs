@@ -5,7 +5,7 @@
 // ============================================================
 
 use super::identity::get_public_key;
-use super::state::{INCOMING_QUEUE, PEER_COUNT, P2P_SENDER};
+use super::state::{INCOMING_QUEUE, P2P_SENDER, PEER_COUNT};
 use super::types::{ApiError, MessageInfo};
 
 pub fn start_p2p_node() -> Result<String, ApiError> {
@@ -13,13 +13,12 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
 
     // Берём ключ до создания runtime — освобождаем Mutex
     let key_bytes = {
-        let guard    = super::state::CURRENT_IDENTITY.lock().unwrap();
+        let guard = super::state::CURRENT_IDENTITY.lock().unwrap();
         let identity = guard.as_ref().ok_or(ApiError::IdentityNotInitialized)?;
         identity.signing_key_bytes()
     };
 
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| ApiError::StorageError(e.to_string()))?;
+    let rt = tokio::runtime::Runtime::new().map_err(|e| ApiError::StorageError(e.to_string()))?;
 
     let (tx_out, mut rx_in) = rt
         .block_on(start_node_channels(key_bytes))
@@ -38,15 +37,15 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
                 println!("📨 ВХОДЯЩЕЕ: от={} текст={}", msg.from_peer, msg.content);
 
                 let info = MessageInfo {
-                    id:        0,
-                    from_key:  msg.from_peer.clone(),
-                    to_key:    String::new(),
-                    content:   msg.content.clone(),
+                    id: 0,
+                    from_key: msg.from_peer.clone(),
+                    to_key: String::new(),
+                    content: msg.content.clone(),
                     timestamp: std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs(),
-                    is_read:   false,
+                    is_read: false,
                     from_name: None,
                 };
                 INCOMING_QUEUE.lock().unwrap().push(info);
@@ -61,12 +60,13 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
 }
 
 pub fn send_p2p_message(content: String) -> Result<(), ApiError> {
-    let guard  = P2P_SENDER.lock().unwrap();
+    let guard = P2P_SENDER.lock().unwrap();
     let sender = guard.as_ref().ok_or_else(|| {
         ApiError::StorageError("P2P узел не запущен. Вызови start_p2p_node()".to_string())
     })?;
 
-    sender.try_send(content)
+    sender
+        .try_send(content)
         .map_err(|e| ApiError::StorageError(e.to_string()))?;
     Ok(())
 }

@@ -61,24 +61,12 @@ async fn main() {
     let cli = Cli::parse();
 
     let result = match cli.command {
-        Commands::Identity { action } => {
-            commands::identity::run(action).await
-        }
-        Commands::Node { action } => {
-            commands::node::run(action).await
-        }
-        Commands::Server { action } => {
-            commands::server::run(action).await
-        }
-        Commands::Contacts { action } => {
-            commands::contacts::run(action).await
-        }
-        Commands::Messages { action } => {
-            commands::messages::run(action).await
-        }
-        Commands::Db { action } => {
-            commands::db::run(action).await
-        }
+        Commands::Identity { action } => commands::identity::run(action).await,
+        Commands::Node { action } => commands::node::run(action).await,
+        Commands::Server { action } => commands::server::run(action).await,
+        Commands::Contacts { action } => commands::contacts::run(action).await,
+        Commands::Messages { action } => commands::messages::run(action).await,
+        Commands::Db { action } => commands::db::run(action).await,
     };
 
     if let Err(e) = result {

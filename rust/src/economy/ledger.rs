@@ -9,10 +9,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use super::account::Account;
 use super::consensus::witness_config_for_reward;
 use super::constants::{
-    DROPS_PER_SAP, EMISSION_STAGE_1_SAP, GENESIS_BONUS_DROPS, GENESIS_MAX_NODES,
-    HARD_CAP_DROPS, MAX_RELAY_REWARD_DROPS, MIN_REPUTATION_FOR_P2P, MIN_STAKE_DROPS,
-    P2P_BURN_PCT, SLASH_PCT, SLASH_REP, TX_FEE_PERCENT, VESTING_IMMEDIATE_PCT,
-    WITNESS_REWARD_PCT,
+    DROPS_PER_SAP, EMISSION_STAGE_1_SAP, GENESIS_BONUS_DROPS, GENESIS_MAX_NODES, HARD_CAP_DROPS,
+    MAX_RELAY_REWARD_DROPS, MIN_REPUTATION_FOR_P2P, MIN_STAKE_DROPS, P2P_BURN_PCT, SLASH_PCT,
+    SLASH_REP, TX_FEE_PERCENT, VESTING_IMMEDIATE_PCT, WITNESS_REWARD_PCT,
 };
 use super::protection::PersonhoodRegistry;
 use super::treasury::Treasury;
@@ -20,44 +19,53 @@ use super::types::{EconomyError, Transaction, TxType};
 use super::vesting::VestingSchedule;
 
 pub struct Ledger {
-    pub accounts:             HashMap<String, Account>,
-    pub treasury:             Treasury,
-    pub total_supply_drops:   u64,
+    pub accounts: HashMap<String, Account>,
+    pub treasury: Treasury,
+    pub total_supply_drops: u64,
     /// Сожжено навсегда через P2P burn
-    pub burned_supply_drops:  u64,
+    pub burned_supply_drops: u64,
     /// Текущий лимит эмиссии (разблокируется по DAU)
     pub emission_limit_drops: u64,
-    pub transactions:         Vec<Transaction>,
-    pub genesis_nodes_count:  u32,
-    pub personhood:           PersonhoodRegistry,
+    pub transactions: Vec<Transaction>,
+    pub genesis_nodes_count: u32,
+    pub personhood: PersonhoodRegistry,
 }
 
 impl Ledger {
     pub fn new() -> Self {
         Ledger {
-            accounts:             HashMap::new(),
-            treasury:             Treasury::new(),
-            total_supply_drops:   0,
-            burned_supply_drops:  0,
+            accounts: HashMap::new(),
+            treasury: Treasury::new(),
+            total_supply_drops: 0,
+            burned_supply_drops: 0,
             emission_limit_drops: EMISSION_STAGE_1_SAP * DROPS_PER_SAP,
-            transactions:         Vec::new(),
-            genesis_nodes_count:  0,
-            personhood:           PersonhoodRegistry::new(),
+            transactions: Vec::new(),
+            genesis_nodes_count: 0,
+            personhood: PersonhoodRegistry::new(),
         }
     }
 
     /// Разблокировать следующий этап эмиссии по количеству DAU
     pub fn unlock_emission_stage(&mut self, dau: u64) {
-        use super::constants::{
-            EMISSION_STAGE_2_SAP, EMISSION_STAGE_3_SAP, EMISSION_STAGE_4_SAP,
+        use super::constants::{EMISSION_STAGE_2_SAP, EMISSION_STAGE_3_SAP, EMISSION_STAGE_4_SAP};
+        let new_sap = if dau >= 1_000_000_000 {
+            EMISSION_STAGE_1_SAP
+                + EMISSION_STAGE_2_SAP
+                + EMISSION_STAGE_3_SAP
+                + EMISSION_STAGE_4_SAP
+        } else if dau >= 100_000_000 {
+            EMISSION_STAGE_1_SAP + EMISSION_STAGE_2_SAP + EMISSION_STAGE_3_SAP
+        } else if dau >= 10_000_000 {
+            EMISSION_STAGE_1_SAP + EMISSION_STAGE_2_SAP
+        } else {
+            EMISSION_STAGE_1_SAP
         };
-        let new_sap = if      dau >= 1_000_000_000 { EMISSION_STAGE_1_SAP + EMISSION_STAGE_2_SAP + EMISSION_STAGE_3_SAP + EMISSION_STAGE_4_SAP }
-                      else if dau >= 100_000_000   { EMISSION_STAGE_1_SAP + EMISSION_STAGE_2_SAP + EMISSION_STAGE_3_SAP }
-                      else if dau >= 10_000_000    { EMISSION_STAGE_1_SAP + EMISSION_STAGE_2_SAP }
-                      else                         { EMISSION_STAGE_1_SAP };
         let new_drops = new_sap * DROPS_PER_SAP;
         if new_drops > self.emission_limit_drops {
-            println!("  🔓 Эмиссия разблокирована до {} SAP (DAU={})", new_sap, dau);
+            println!(
+                "  🔓 Эмиссия разблокирована до {} SAP (DAU={})",
+                new_sap, dau
+            );
             self.emission_limit_drops = new_drops;
         }
     }
@@ -100,7 +108,12 @@ impl Ledger {
         to: &str,
         amount_drops: u64,
     ) -> Result<Transaction, EconomyError> {
-        if self.accounts.get(from).map(|a| a.is_banned).unwrap_or(false) {
+        if self
+            .accounts
+            .get(from)
+            .map(|a| a.is_banned)
+            .unwrap_or(false)
+        {
             return Err(EconomyError::NodeBanned);
         }
         if let Some(acc) = self.accounts.get(from) {
@@ -108,11 +121,14 @@ impl Ledger {
         }
         self.get_or_create(from).check_rate_limit()?;
 
-        let fee   = Self::calc_fee(amount_drops);
+        let fee = Self::calc_fee(amount_drops);
         let total = amount_drops + fee;
         let balance = self.get_or_create(from).balance_drops;
         if balance < total {
-            return Err(EconomyError::InsufficientFunds { need: total, have: balance });
+            return Err(EconomyError::InsufficientFunds {
+                need: total,
+                have: balance,
+            });
         }
 
         self.accounts.get_mut(from).unwrap().balance_drops -= total;
@@ -120,15 +136,22 @@ impl Ledger {
         self.treasury.deposit(fee, false);
 
         let tx = Transaction::new(
-            from.to_string(), to.to_string(),
-            amount_drops, fee, 0, TxType::Transfer,
+            from.to_string(),
+            to.to_string(),
+            amount_drops,
+            fee,
+            0,
+            TxType::Transfer,
         );
         self.accounts.get_mut(from).unwrap().add_tx(tx.id.clone());
         self.transactions.push(tx.clone());
 
         println!(
             "  ✅ Перевод: {:.4} SAP | {}... → {}... | fee: {} Drops",
-            tx.amount_sap(), &from[..8], &to[..8], fee
+            tx.amount_sap(),
+            &from[..8],
+            &to[..8],
+            fee
         );
         Ok(tx)
     }
@@ -141,7 +164,12 @@ impl Ledger {
         to: &str,
         amount_drops: u64,
     ) -> Result<Transaction, EconomyError> {
-        if self.accounts.get(from).map(|a| a.is_banned).unwrap_or(false) {
+        if self
+            .accounts
+            .get(from)
+            .map(|a| a.is_banned)
+            .unwrap_or(false)
+        {
             return Err(EconomyError::NodeBanned);
         }
         if let Some(acc) = self.accounts.get(from) {
@@ -158,7 +186,11 @@ impl Ledger {
         }
 
         // Velocity Limit
-        { self.get_or_create(from).velocity.check_and_record(amount_drops)?; }
+        {
+            self.get_or_create(from)
+                .velocity
+                .check_and_record(amount_drops)?;
+        }
 
         // Vesting проверка
         {
@@ -171,13 +203,16 @@ impl Ledger {
         }
 
         // Burn 1% при P2P
-        let burn_amount  = (amount_drops as f64 * P2P_BURN_PCT) as u64;
-        let fee          = Self::calc_fee(amount_drops);
+        let burn_amount = (amount_drops as f64 * P2P_BURN_PCT) as u64;
+        let fee = Self::calc_fee(amount_drops);
         let total_needed = amount_drops + fee + burn_amount;
 
         let balance = self.get_or_create(from).balance_drops;
         if balance < total_needed {
-            return Err(EconomyError::InsufficientFunds { need: total_needed, have: balance });
+            return Err(EconomyError::InsufficientFunds {
+                need: total_needed,
+                have: balance,
+            });
         }
 
         self.accounts.get_mut(from).unwrap().balance_drops -= total_needed;
@@ -185,27 +220,39 @@ impl Ledger {
         self.treasury.deposit(fee, false);
 
         // Burn — уменьшаем total_supply навсегда
-        self.total_supply_drops              -= burn_amount;
-        self.burned_supply_drops             += burn_amount;
-        self.treasury.total_burned_drops     += burn_amount;
+        self.total_supply_drops -= burn_amount;
+        self.burned_supply_drops += burn_amount;
+        self.treasury.total_burned_drops += burn_amount;
 
         // Детектор аномалий
-        let total_balance = self.accounts.get(from).map(|a| a.balance_drops).unwrap_or(0);
-        let genesis_age   = self.accounts.get(from).and_then(|a| a.genesis_age_secs());
+        let total_balance = self
+            .accounts
+            .get(from)
+            .map(|a| a.balance_drops)
+            .unwrap_or(0);
+        let genesis_age = self.accounts.get(from).and_then(|a| a.genesis_age_secs());
         if let Some(acc) = self.accounts.get_mut(from) {
-            acc.anomaly.record_sale(amount_drops, total_balance, genesis_age);
+            acc.anomaly
+                .record_sale(amount_drops, total_balance, genesis_age);
         }
 
         let tx = Transaction::new(
-            from.to_string(), to.to_string(),
-            amount_drops, fee, burn_amount, TxType::P2PExchange,
+            from.to_string(),
+            to.to_string(),
+            amount_drops,
+            fee,
+            burn_amount,
+            TxType::P2PExchange,
         );
         self.accounts.get_mut(from).unwrap().add_tx(tx.id.clone());
         self.transactions.push(tx.clone());
 
         println!(
             "  🔄 P2P обмен: {:.4} SAP | {}... → {}... | burn: {} Drops 🔥",
-            tx.amount_sap(), &from[..8], &to[..8], burn_amount
+            tx.amount_sap(),
+            &from[..8],
+            &to[..8],
+            burn_amount
         );
         Ok(tx)
     }
@@ -218,22 +265,30 @@ impl Ledger {
         }
         let balance = self.get_or_create(key).balance_drops;
         if balance < MIN_STAKE_DROPS {
-            return Err(EconomyError::InsufficientStake { need: MIN_STAKE_DROPS });
+            return Err(EconomyError::InsufficientStake {
+                need: MIN_STAKE_DROPS,
+            });
         }
         let acc = self.accounts.get_mut(key).unwrap();
         acc.balance_drops -= MIN_STAKE_DROPS;
-        acc.staked_drops  += MIN_STAKE_DROPS;
+        acc.staked_drops += MIN_STAKE_DROPS;
         println!("  🔒 Stake: 10 SAP | узел {}...", &key[..8]);
         Ok(())
     }
 
     pub fn unstake(&mut self, key: &str) -> Result<(), EconomyError> {
-        let acc = self.accounts.get_mut(key)
+        let acc = self
+            .accounts
+            .get_mut(key)
             .ok_or_else(|| EconomyError::NodeNotFound(key.to_string()))?;
         let staked = acc.staked_drops;
-        acc.staked_drops   = 0;
+        acc.staked_drops = 0;
         acc.balance_drops += staked;
-        println!("  🔓 Unstake: {} SAP | {}...", staked / DROPS_PER_SAP, &key[..8]);
+        println!(
+            "  🔓 Unstake: {} SAP | {}...",
+            staked / DROPS_PER_SAP,
+            &key[..8]
+        );
         Ok(())
     }
 
@@ -245,20 +300,32 @@ impl Ledger {
         relayed_bytes: u64,
         witnesses: Vec<String>,
     ) -> Result<Transaction, EconomyError> {
-        if !self.accounts.get(relay_node).map(|a| a.is_active_node()).unwrap_or(false) {
-            return Err(EconomyError::InsufficientStake { need: MIN_STAKE_DROPS });
+        if !self
+            .accounts
+            .get(relay_node)
+            .map(|a| a.is_active_node())
+            .unwrap_or(false)
+        {
+            return Err(EconomyError::InsufficientStake {
+                need: MIN_STAKE_DROPS,
+            });
         }
 
-        let base       = ((relayed_bytes / 10_240) * 100).max(1).min(MAX_RELAY_REWARD_DROPS);
+        let base = ((relayed_bytes / 10_240) * 100)
+            .max(1)
+            .min(MAX_RELAY_REWARD_DROPS);
         let multiplier = self.treasury.reward_multiplier(self.total_supply_drops);
-        let reward     = (base as f64 * multiplier) as u64;
-        if reward == 0 { return Err(EconomyError::TreasuryReserveLocked); }
+        let reward = (base as f64 * multiplier) as u64;
+        if reward == 0 {
+            return Err(EconomyError::TreasuryReserveLocked);
+        }
 
-        let cfg            = witness_config_for_reward(reward);
+        let cfg = witness_config_for_reward(reward);
         let witness_reward = (reward as f64 * WITNESS_REWARD_PCT) as u64;
-        let total_payout   = reward + witness_reward * witnesses.len() as u64;
+        let total_payout = reward + witness_reward * witnesses.len() as u64;
 
-        self.treasury.withdraw(total_payout, self.total_supply_drops)?;
+        self.treasury
+            .withdraw(total_payout, self.total_supply_drops)?;
         self.get_or_create(relay_node).balance_drops += reward;
         if let Some(acc) = self.accounts.get_mut(relay_node) {
             acc.reputation = (acc.reputation + 1).min(100);
@@ -271,14 +338,23 @@ impl Ledger {
         }
 
         let tx = Transaction::new(
-            "TREASURY".to_string(), relay_node.to_string(),
-            reward, 0, 0,
-            TxType::RelayReward { relayed_bytes, witnesses: witnesses.clone() },
+            "TREASURY".to_string(),
+            relay_node.to_string(),
+            reward,
+            0,
+            0,
+            TxType::RelayReward {
+                relayed_bytes,
+                witnesses: witnesses.clone(),
+            },
         );
         self.transactions.push(tx.clone());
         println!(
             "  📡 Relay reward: {} Drops → {}... | {} свид. (кворум {})",
-            reward, &relay_node[..8], cfg.count, cfg.quorum
+            reward,
+            &relay_node[..8],
+            cfg.count,
+            cfg.quorum
         );
         Ok(tx)
     }
@@ -291,10 +367,14 @@ impl Ledger {
             acc.offense_count += 1;
             acc.offense_count
         };
-        let idx         = ((offense_count - 1) as usize).min(3);
-        let slash_pct   = SLASH_PCT[idx];
+        let idx = ((offense_count - 1) as usize).min(3);
+        let slash_pct = SLASH_PCT[idx];
         let rep_penalty = SLASH_REP[idx];
-        let staked      = self.accounts.get(offender).map(|a| a.staked_drops).unwrap_or(0);
+        let staked = self
+            .accounts
+            .get(offender)
+            .map(|a| a.staked_drops)
+            .unwrap_or(0);
         let slash_amount = (staked as f64 * slash_pct) as u64;
 
         let acc = self.accounts.get_mut(offender).unwrap();
@@ -309,7 +389,8 @@ impl Ledger {
         } else {
             println!(
                 "  ⚠️  Нарушение #{} | {}... | slash {:.0}% | rep: {}",
-                offense_count, &offender[..8],
+                offense_count,
+                &offender[..8],
                 slash_pct * 100.0,
                 self.accounts[offender].reputation
             );
@@ -328,7 +409,12 @@ impl Ledger {
         if self.genesis_nodes_count >= GENESIS_MAX_NODES {
             return Err(EconomyError::GenesisEnded(GENESIS_MAX_NODES));
         }
-        if self.accounts.get(key).map(|a| a.genesis_claimed).unwrap_or(false) {
+        if self
+            .accounts
+            .get(key)
+            .map(|a| a.genesis_claimed)
+            .unwrap_or(false)
+        {
             return Err(EconomyError::InvalidTransaction(
                 "Genesis бонус уже получен".to_string(),
             ));
@@ -338,9 +424,9 @@ impl Ledger {
         self.mint(key, GENESIS_BONUS_DROPS)?;
 
         let acc = self.accounts.get_mut(key).unwrap();
-        acc.genesis_claimed   = true;
+        acc.genesis_claimed = true;
         acc.genesis_timestamp = Some(now_secs());
-        acc.vesting           = Some(VestingSchedule::new(GENESIS_BONUS_DROPS));
+        acc.vesting = Some(VestingSchedule::new(GENESIS_BONUS_DROPS));
 
         self.genesis_nodes_count += 1;
         println!(
@@ -358,9 +444,9 @@ impl Ledger {
     pub fn print_stats(&self) {
         let supply = self.total_supply_drops as f64 / DROPS_PER_SAP as f64;
         let burned = self.burned_supply_drops as f64 / DROPS_PER_SAP as f64;
-        let cap    = HARD_CAP_DROPS as f64 / DROPS_PER_SAP as f64;
-        let limit  = self.emission_limit_drops as f64 / DROPS_PER_SAP as f64;
-        let pct    = (self.total_supply_drops as f64 / self.emission_limit_drops as f64) * 100.0;
+        let cap = HARD_CAP_DROPS as f64 / DROPS_PER_SAP as f64;
+        let limit = self.emission_limit_drops as f64 / DROPS_PER_SAP as f64;
+        let pct = (self.total_supply_drops as f64 / self.emission_limit_drops as f64) * 100.0;
 
         println!("\n  ╔══════════════════════════════════════════════╗");
         println!("  ║       СТАТИСТИКА ЭКОНОМИКИ ROOT v2.0         ║");
@@ -369,10 +455,22 @@ impl Ledger {
         println!("  ║ Лимит эмиссии:   {:>14.0} SAP           ║", limit);
         println!("  ║ Выпущено:        {:>11.4} SAP ({:.2}%)  ║", supply, pct);
         println!("  ║ Сожжено (P2P):   {:>14.6} SAP           ║", burned);
-        println!("  ║ Treasury:        {:>14.4} SAP           ║", self.treasury.balance_sap());
-        println!("  ║ Счетов:          {:>14}               ║", self.accounts.len());
-        println!("  ║ Транзакций:      {:>14}               ║", self.transactions.len());
-        println!("  ║ Genesis узлов:   {:>7}/{:<5}               ║", self.genesis_nodes_count, GENESIS_MAX_NODES);
+        println!(
+            "  ║ Treasury:        {:>14.4} SAP           ║",
+            self.treasury.balance_sap()
+        );
+        println!(
+            "  ║ Счетов:          {:>14}               ║",
+            self.accounts.len()
+        );
+        println!(
+            "  ║ Транзакций:      {:>14}               ║",
+            self.transactions.len()
+        );
+        println!(
+            "  ║ Genesis узлов:   {:>7}/{:<5}               ║",
+            self.genesis_nodes_count, GENESIS_MAX_NODES
+        );
         println!("  ╚══════════════════════════════════════════════╝\n");
     }
 }

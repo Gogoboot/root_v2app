@@ -12,7 +12,7 @@ pub fn get_version() -> String {
 
 pub fn verify_db_integrity() -> Result<bool, ApiError> {
     let db_guard = CURRENT_DB.lock().unwrap();
-    let db       = db_guard.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
+    let db = db_guard.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     db.verify_integrity()
         .map_err(|e| ApiError::StorageError(e.to_string()))
 }
@@ -29,9 +29,8 @@ pub fn validate_public_key(key: String) -> bool {
     }
     // Проверяем что можно декодировать в валидный Ed25519 ключ
     if let Ok(bytes) = hex::decode(&key) {
-        ed25519_dalek::VerifyingKey::from_bytes(
-            bytes.as_slice().try_into().unwrap_or(&[0u8; 32])
-        ).is_ok()
+        ed25519_dalek::VerifyingKey::from_bytes(bytes.as_slice().try_into().unwrap_or(&[0u8; 32]))
+            .is_ok()
     } else {
         false
     }

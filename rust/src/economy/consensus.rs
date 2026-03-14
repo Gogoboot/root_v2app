@@ -23,9 +23,25 @@ pub struct WitnessConfig {
 /// - больше 1M drops:     7 свидетелей, кворум 4, таймаут 120с
 pub fn witness_config_for_reward(reward_drops: u64) -> WitnessConfig {
     match reward_drops {
-        0..=100            => WitnessConfig { count: 1, quorum: 1, timeout: 2   },
-        101..=10_000       => WitnessConfig { count: 3, quorum: 2, timeout: 10  },
-        10_001..=1_000_000 => WitnessConfig { count: 5, quorum: 3, timeout: 30  },
-        _                  => WitnessConfig { count: 7, quorum: 4, timeout: 120 },
+        0..=100 => WitnessConfig {
+            count: 1,
+            quorum: 1,
+            timeout: 2,
+        },
+        101..=10_000 => WitnessConfig {
+            count: 3,
+            quorum: 2,
+            timeout: 10,
+        },
+        10_001..=1_000_000 => WitnessConfig {
+            count: 5,
+            quorum: 3,
+            timeout: 30,
+        },
+        _ => WitnessConfig {
+            count: 7,
+            quorum: 4,
+            timeout: 120,
+        },
     }
 }
