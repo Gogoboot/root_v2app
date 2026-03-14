@@ -18,29 +18,27 @@ jobs:
       run:
         working-directory: ./rust
     steps:
-      - uses: actions/checkout@v4
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-action@stable
+      - name: 🦀 Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
 
-      - name: Cache Cargo
-        uses: actions/cache@v3
+      - name: 📦 Cache Cargo
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            rust/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          workspaces: "./rust"
 
-      - name: Format Check
+      - name: 📝 Format Check
         run: cargo fmt --all -- --check
 
-      - name: Clippy Lint
+      - name: 🔍 Clippy Lint
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Unit Tests
+      - name: 🧪 Unit Tests
         run: cargo test --lib
+
+      - name: ✅ CI Complete
+        run: echo "ROOT v2.0 CI passed!"
