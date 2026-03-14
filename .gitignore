@@ -28,7 +28,6 @@ firebase_options.dart
 *.sqlite
 *.sqlite3
 root_messages.db
-storage/
 data/
 *.merkle
 
