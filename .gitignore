@@ -1,0 +1,121 @@
+# ═══════════════════════════════════════════════════════════
+# ROOT v2.0 — .gitignore
+# Защита секретов + чистка артефактов
+# ═══════════════════════════════════════════════════════════
+
+# ── 🔴 КРИТИЧНО: Секреты и ключи (НИКОГДА не коммитить) ─────
+*.pem
+*.key
+*.p12
+*.pfx
+mnemonic.txt
+seed.txt
+private_key.*
+secret.*
+*.shard
+shamir_*.txt
+identity_backup.*
+.env
+.env.local
+.env.production
+credentials.json
+firebase_options.dart
+
+# ── 🔴 КРИТИЧНО: Базы данных (содержат личные данные) ───────
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+root_messages.db
+storage/
+data/
+*.merkle
+
+# ── 🦀 Rust артефакты ───────────────────────────────────────
+/target/
+**/target/
+Cargo.lock
+**/*.rs.bk
+*.so
+*.dll
+*.dylib
+*.pdb
+
+# ── 🐦 Flutter артефакты ────────────────────────────────────
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+**/build/
+*.lock
+
+# ── 🤖 Android специфично ───────────────────────────────────
+/android/app/debug/
+/android/app/release/
+/android/app/profile/
+/android/.gradle/
+/android/local.properties
+/android/**/generated/
+/android/**/outputs/
+*.jks
+*.keystore
+# ⚠️ Но НЕ игнорируем jniLibs (там наша .so библиотека)
+!/android/app/src/main/jniLibs/
+
+# ── 🍎 iOS специфично ───────────────────────────────────────
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/app.flx
+/ios/Flutter/app.zip
+/ios/Flutter/Flutter.framework/Headers
+/ios/Flutter/Flutter.framework/Modules
+*.xcworkspace
+!*.xcworkspace/contents.xcworkspacedata
+*.xcuserstate
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ── 💻 CLI бинарники ─────────────────────────────────────────
+/root-cli
+/root-cli.exe
+cli/target/
+**/root-cli
+**/root-cli.exe
+
+# ── 📝 Логи и временные файлы ───────────────────────────────
+*.log
+logs/
+tmp/
+temp/
+.cache/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── 🛠️ IDE настройки (пользовательские) ─────────────────────
+.idea/
+.vscode/settings.json
+.vscode/launch.json
+*.swp
+*.swo
+*~
+
+# ── 🧪 Тестовые данные ──────────────────────────────────────
+test_data/
+mocks/
+*.mock.dart
+*.mock.rs
+
+# ── 📦 Временные файлы разработки ───────────────────────────
+*.orig
+*.patch
+*.diff
