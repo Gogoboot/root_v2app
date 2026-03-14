@@ -1,0 +1,46 @@
+# .github/workflows/ci.yml
+name: ROOT v2.0 CI
+
+on:
+  push:
+    branches: [ "main", "dev", "feature/*" ]
+  pull_request:
+    branches: [ "dev" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  rust-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            rust/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Format Check
+        run: cargo fmt --all -- --check
+
+      - name: Clippy Lint
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Unit Tests
+        run: cargo test --lib
