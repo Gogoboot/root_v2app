@@ -22,7 +22,7 @@ pub mod panic;
 pub use constants::*;
 pub use database::Database;
 pub use error::StorageError;
-pub use key::StorageKey;
+//use crate::crypto::SecureKey;
 pub use merkle::MerkleTree;
 pub use models::{Contact, Message};
 pub use panic::PanicButton;

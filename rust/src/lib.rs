@@ -63,6 +63,8 @@ pub mod economy;
 pub mod identity;
 pub mod network;
 pub mod storage;
+pub mod crypto;
+
 
 // transport — алиас для обратной совместимости с flutter_rust_bridge
 pub use network::channels as transport;
@@ -71,7 +73,7 @@ pub use network::channels as transport;
 
 pub use identity::{Identity, ProtectedKey, SecretSeed, ShamirVault};
 
-pub use storage::{Contact, Database, MerkleTree, Message, PanicButton, StorageError, StorageKey};
+pub use storage::{Contact, Database, MerkleTree, Message, PanicButton, StorageError};
 
 pub use economy::{
     Account, AnomalyDetector, DROPS_PER_SAP, EconomyError, Ledger, Transaction, Treasury, TxType,

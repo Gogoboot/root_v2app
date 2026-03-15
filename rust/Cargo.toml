@@ -24,8 +24,16 @@ path = "src/cli/main.rs"
 bip39          = "2.0"
 ed25519-dalek  = { version = "2.0", features = ["rand_core"] }
 rand           = { version = "0.8", features = ["getrandom"] }
-zeroize        = { version = "1.6", features = ["derive"] }
+# zeroize        = { version = "1.6", features = ["derive"] }
+dirs = "5.0"  # Путь к app data (для соли)
+
+
 sharks         = "0.5"
+# ═══════════════════════════════════════════════════════════
+# КРИПТОГРАФИЯ (НОВЫЕ для #16)
+# ═══════════════════════════════════════════════════════════
+chacha20poly1305 = "0.10"      # ChaCha20-Poly1305 AEAD шифрование
+zeroize = { version = "1.7", features = ["zeroize_derive"] }  # Очистка памяти
 
 # Flutter мост
 flutter_rust_bridge = "2.11.1"
@@ -50,8 +58,12 @@ thiserror  = "1.0"
 
 # База данных
 rusqlite = { version = "0.31", features = ["bundled"] }
-argon2   = "0.5"
+argon2   = "0.5"      # Argon2id для деривации ключа
+password-hash = "0.5"  # ← ДОБАВИТЬ (нужен для argon2 0.5)
 
 # Разное
 lazy_static = "1.4"
 clap        = { version = "4", features = ["derive"] }
+
+# FFI (для Flutter)
+ffi-support = "0.4"

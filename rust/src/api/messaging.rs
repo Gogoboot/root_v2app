@@ -45,7 +45,7 @@ pub fn get_messages() -> Result<Vec<MessageInfo>, ApiError> {
                 .find(|c| c.public_key == m.from_key)
                 .map(|c| c.nickname.clone());
             MessageInfo {
-                id: m.id,
+                id: m.id.unwrap_or(0),
                 from_key: m.from_key,
                 to_key: m.to_key,
                 content: m.content,
