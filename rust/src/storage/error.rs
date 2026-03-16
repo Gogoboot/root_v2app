@@ -20,7 +20,10 @@ pub enum StorageError {
     
     #[error("Ошибка деривации ключа")]
     KeyDerivationFailed,
-    
+
+    #[error("Ошибка управления ключами: {0}")]
+    KeyError(String),
+
     #[error("Ошибка шифрования")]
     EncryptionFailed,
     
@@ -32,6 +35,9 @@ pub enum StorageError {
     
     #[error("Ошибка десериализации")]
     DeserializationFailed,
+
+    #[error("Нарушении целостности данных")]
+    MerkleVerificationFailed,
 
     #[error("Panic Button активирован — данные уничтожены")]
     PanicButtonActivated,

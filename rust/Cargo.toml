@@ -24,14 +24,10 @@ path = "src/cli/main.rs"
 bip39          = "2.0"
 ed25519-dalek  = { version = "2.0", features = ["rand_core"] }
 rand           = { version = "0.8", features = ["getrandom"] }
-# zeroize        = { version = "1.6", features = ["derive"] }
 dirs = "5.0"  # Путь к app data (для соли)
 
 
 sharks         = "0.5"
-# ═══════════════════════════════════════════════════════════
-# КРИПТОГРАФИЯ (НОВЫЕ для #16)
-# ═══════════════════════════════════════════════════════════
 chacha20poly1305 = "0.10"      # ChaCha20-Poly1305 AEAD шифрование
 zeroize = { version = "1.7", features = ["zeroize_derive"] }  # Очистка памяти
 
@@ -67,3 +63,11 @@ clap        = { version = "4", features = ["derive"] }
 
 # FFI (для Flutter)
 ffi-support = "0.4"
+
+# Для безопасного хранения секретов в OS
+keyring = "2.0"
+# Для кодирования бинарной соли в строку (требуется некоторым бэкендам keyring)
+base64 = "0.21"
+
+# Логирование (добавлено для задачи #17)
+log = "0.4"

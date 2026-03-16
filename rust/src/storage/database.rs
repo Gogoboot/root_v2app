@@ -1,46 +1,79 @@
 // ═══════════════════════════════════════════════════════════
 // ROOT v2.0 — storage/database.rs
+// Версия: 2.1 (Интеграция SaltManager #17)
 // ═══════════════════════════════════════════════════════════
 
 use crate::crypto::{derive_key, encrypt, decrypt, pack_for_storage, unpack_from_storage, SecureKey, Salt};
-use crate::storage::key::get_or_generate_salt;
+use crate::storage::key::SaltManager; // <-- Импортируем новый менеджер
 use rusqlite::{Connection, params};
 use std::time::{SystemTime, UNIX_EPOCH};
 use super::error::StorageError;
 use super::merkle::MerkleTree;
 use super::models::{Contact, Message};
 use super::panic::PanicButton;
+use zeroize::Zeroize;
 
 pub struct Database {
     conn: Option<Connection>,
     key: SecureKey,
-    salt: Salt,
+    // Соль теперь управляется внутри salt_manager, но мы можем оставить копию для отладки/логики,
+    // если нужно. В данной реализации мы храним менеджер, чтобы он жил столько же, сколько БД.
+    salt_manager: SaltManager, 
     merkle: MerkleTree,
     db_path: String,
     panicked: bool,
 }
 
 impl Database {
+    /// Открывает БД, деривирует ключ через Argon2id используя соль из Keychain (или мигрирует файл).
     pub fn open(path: &str, password: &str) -> Result<Self, StorageError> {
+        println!("  🔑 Инициализация SaltManager (Keychain/Migration)...");
+        
+        // Определяем директорию приложения для SaltManager.
+        // Обычно это родительская директория от файла БД или специфичный путь.
+        // Если БД лежит в ~/.local/share/root_app/db.sqlite, то dir будет ~/.local/share/root_app/
+        let db_path_obj = std::path::PathBuf::from(path);
+        let app_data_dir = db_path_obj.parent()
+            .ok_or(StorageError::Database(rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(1), 
+                Some("Invalid DB path".to_string())
+            )))?
+            .to_path_buf();
+
+        // 1. Создаем менеджер соли (выполняет чтение из Keychain или миграцию)
+        let salt_manager = SaltManager::new(&app_data_dir)
+            .map_err(|e| StorageError::KeyError(e.to_string()))?;
+
         println!("  🔑 Генерация ключа через Argon2id...");
         let start = now_millis();
 
-        let salt = get_or_generate_salt()
-            .map_err(|_| StorageError::KeyDerivationFailed)?;
+        // 2. Получаем соль для деривации
+        let salt_bytes = salt_manager.get_salt()
+            .map_err(|e| StorageError::KeyError(e.to_string()))?;
         
+        // Копируем соль в Zeroizing буфер для безопасной передачи в derive_key
+        let mut salt = Salt::default();
+        salt.copy_from_slice(salt_bytes);
+
+        // 3. Деривируем ключ
         let key = derive_key(password, &salt)
             .map_err(|_| StorageError::KeyDerivationFailed)?;
         
+        // Очищаем локальную копию соли сразу после деривации (она больше не нужна в стеке)
+        salt.zeroize(); 
+
         let elapsed = now_millis() - start;
         println!("  ✅ Ключ готов за {}ms", elapsed);
 
+        // 4. Открываем SQLite соединение
+        // Примечание: Сама БД теперь содержит только зашифрованные данные, SQLCipher не нужен.
         let conn = Connection::open(path)
             .map_err(StorageError::Database)?;
 
         Ok(Database {
             conn: Some(conn),
             key,
-            salt,
+            salt_manager, // Сохраняем менеджер в структуре
             merkle: MerkleTree::new(),
             db_path: path.to_string(),
             panicked: false,
@@ -88,6 +121,10 @@ impl Database {
     }
 
     pub fn save_message(&mut self, mut msg: Message) -> Result<u64, StorageError> {
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
+
         let hash = msg.hash();
         let hash_hex = hex::encode(hash);
 
@@ -111,13 +148,17 @@ impl Database {
         let root = self.merkle.root().map(hex::encode).unwrap_or_default();
         conn.execute(
             "INSERT INTO merkle_roots (root_hash, msg_count, timestamp) VALUES (?1, ?2, ?3)",
-            params![root, self.merkle.len() as i64, now_secs() as i64],
+            params![root, self.merkle.len() as i64, now_secs()? as i64],
         ).map_err(StorageError::Database)?;
 
         Ok(id)
     }
 
     pub fn get_messages(&self, public_key: &str) -> Result<Vec<Message>, StorageError> {
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
+
         let conn = self.conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, from_key, to_key, content, timestamp, is_read
@@ -158,6 +199,9 @@ impl Database {
     }
 
     pub fn mark_read(&self, msg_id: u64) -> Result<(), StorageError> {
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
         let updated = self.conn()?.execute(
             "UPDATE messages SET is_read = 1 WHERE id = ?1",
             params![msg_id as i64],
@@ -169,6 +213,9 @@ impl Database {
     }
 
     pub fn unread_count(&self, public_key: &str) -> Result<u64, StorageError> {
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
         let count: i64 = self.conn()?.query_row(
             "SELECT COUNT(*) FROM messages WHERE to_key = ?1 AND is_read = 0",
             params![public_key],
@@ -178,14 +225,20 @@ impl Database {
     }
 
     pub fn save_identity(&self, public_key: &str, mnemonic: &str) -> Result<(), StorageError> {
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
         self.conn()?.execute(
             "INSERT OR REPLACE INTO identity (id, public_key, mnemonic, created_at) VALUES (1, ?1, ?2, ?3)",
-            params![public_key, mnemonic, now_secs()],
+            params![public_key, mnemonic, now_secs()?],
         ).map_err(StorageError::Database)?;
         Ok(())
     }
 
     pub fn load_identity(&self) -> Result<Option<(String, String)>, StorageError> {
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
         let conn = self.conn()?;
         let mut stmt = conn.prepare("SELECT public_key, mnemonic FROM identity WHERE id = 1")
             .map_err(StorageError::Database)?;
@@ -198,6 +251,9 @@ impl Database {
     }
 
     pub fn add_contact(&self, contact: &Contact) -> Result<(), StorageError> {
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
         let count: i64 = self.conn()?.query_row(
             "SELECT COUNT(*) FROM contacts WHERE nickname = ?1 AND public_key != ?2",
             params![contact.nickname, contact.public_key],
@@ -214,6 +270,9 @@ impl Database {
     }
 
     pub fn get_contacts(&self) -> Result<Vec<Contact>, StorageError> {
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
         let conn = self.conn()?;
         let mut stmt = conn.prepare("SELECT public_key, nickname, added_at, reputation FROM contacts")
             .map_err(StorageError::Database)?;
@@ -232,6 +291,9 @@ impl Database {
     }
 
     pub fn verify_integrity(&self) -> Result<bool, StorageError> {
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
         let conn = self.conn()?;
         let mut stmt = conn.prepare("SELECT merkle_hash FROM messages ORDER BY id ASC")
             .map_err(StorageError::Database)?;
@@ -263,7 +325,7 @@ impl Database {
         println!("  ║ Файл БД:        {:>26}  ║", self.db_path);
         println!("  ║ Шифрование:     {:>26}  ║", "ChaCha20-Poly1305 (app-level)");
         println!("  ║ KDF:            {:>26}  ║", "Argon2id (19MB, 2 iter)");
-        println!("  ║ Соль:           {:>26}  ║", "Файл (TODO #17: Keychain)");
+        println!("  ║ Соль:           {:>26}  ║", "OS Keychain/Keystore (#17 DONE)");
         println!("  ║ Merkle листьев: {:>26}  ║", self.merkle.len());
         println!("  ║ Panic Button:   {:>26}  ║", if self.panicked { "🆘 АКТИВИРОВАН" } else { "✅ Не активирован" });
         println!("  ╚══════════════════════════════════════════════╝\n");
@@ -272,16 +334,28 @@ impl Database {
 
 impl Drop for Database {
     fn drop(&mut self) {
-        use zeroize::Zeroize;
+        // Обнуляем ключ
         self.key.zeroize();
-        self.salt.zeroize();
+        
+        // SaltManager при дропе автоматически очистит внутреннюю соль, 
+        // так как она хранится в Zeroizing<[u8; 32]> внутри него.
+        // Явное действие не требуется, но можно добавить логирование.
     }
 }
 
-fn now_secs() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
+fn now_secs() -> Result<u64, StorageError> {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .map_err(|e| StorageError::Database(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(1), 
+            Some(format!("System time error: {}", e))
+        )))
 }
 
 fn now_millis() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| std::time::Duration::from_secs(0))
+        .as_millis() as u64
 }
