@@ -51,8 +51,8 @@ impl SaltManager {
 
     /// Возвращает ссылку на массив байт [u8; 32]
     pub fn get_salt(&self) -> Result<&[u8; SALT_SIZE], KeyError> {
-        self.salt.as_ref().map(|z| &**z).ok_or(KeyError::NotInitialized)
-    }   
+        self.salt.as_deref().ok_or(KeyError::NotInitialized)
+    }
 
     /// Основная логика: Keychain -> Миграция с файла -> Генерация новой
     fn load_or_create_salt(&self, app_data_dir: &Path) -> Result<Zeroizing<[u8; SALT_SIZE]>, KeyError> {
@@ -187,5 +187,51 @@ mod tests {
         // Простой тест на компиляцию структуры
         // Реальное тестирование требует доступа к OS Keychain
         println!("SaltManager structure OK.");
+    }
+}
+
+// В конце file::storage/key.rs
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_salt_manager_creation() {
+        let temp_dir = std::env::temp_dir().join("root_test_salt");
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let manager = SaltManager::new(&temp_dir);
+        assert!(manager.is_ok());
+        
+        // Проверка получения соли
+        let manager = manager.unwrap();
+        let salt = manager.get_salt().unwrap();
+        assert_eq!(salt.len(), SALT_SIZE);
+        
+        // Очистка
+        drop(manager);
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_salt_uniqueness() {
+        let temp_dir = std::env::temp_dir().join("root_test_salt_2");
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let manager1 = SaltManager::new(&temp_dir).unwrap();
+        let salt1 = *manager1.get_salt().unwrap();
+        
+        drop(manager1);
+        
+        // При повторном создании та же соль должна быть восстановлена
+        let manager2 = SaltManager::new(&temp_dir).unwrap();
+        let salt2 = *manager2.get_salt().unwrap();
+        
+        assert_eq!(salt1, salt2, "Соль должна сохраняться между запусками");
+        
+        drop(manager2);
+        fs::remove_dir_all(&temp_dir).ok();
     }
 }

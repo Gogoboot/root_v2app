@@ -2,6 +2,13 @@
 // ROOT v2.0 — storage/database.rs
 // Версия: 2.1 (Интеграция SaltManager #17)
 // ═══════════════════════════════════════════════════════════
+//Title: Убрать suppress dead_code для salt_manager после #37
+//Description:
+//Поле salt_manager временно имеет #[expect(dead_code)]. Нужно:
+//1. Добавить использование после завершения задачи #37
+//2. Удалить атрибут когда поле станет активно использоваться
+
+
 
 use crate::crypto::{derive_key, encrypt, decrypt, pack_for_storage, unpack_from_storage, SecureKey, Salt};
 use crate::storage::key::SaltManager; // <-- Импортируем новый менеджер
@@ -18,6 +25,7 @@ pub struct Database {
     key: SecureKey,
     // Соль теперь управляется внутри salt_manager, но мы можем оставить копию для отладки/логики,
     // если нужно. В данной реализации мы храним менеджер, чтобы он жил столько же, сколько БД.
+    #[expect(dead_code)]    // С пометкой "это временно"
     salt_manager: SaltManager, 
     merkle: MerkleTree,
     db_path: String,

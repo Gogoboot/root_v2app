@@ -3,6 +3,11 @@ name = "root_identity"
 version = "0.1.0"
 edition = "2024"
 
+
+metadata.todo = [
+    "#37: Активировать salt_manager для ротации ключей"
+]
+
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(frb_expand)'] }
 
@@ -23,8 +28,11 @@ path = "src/cli/main.rs"
 # Криптография
 bip39          = "2.0"
 ed25519-dalek  = { version = "2.0", features = ["rand_core"] }
+x25519-dalek = "2.0"        # X25519 ECDH обмен
 rand           = { version = "0.8", features = ["getrandom"] }
 dirs = "5.0"  # Путь к app data (для соли)
+generic-array = "0.14"
+
 
 
 sharks         = "0.5"
