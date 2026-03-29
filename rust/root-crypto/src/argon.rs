@@ -5,7 +5,7 @@
 use argon2::{Argon2, Algorithm, Version, Params};
 use password_hash::{SaltString, PasswordHasher};
 //use rand::RngCore;
-use crate::crypto::types::{CryptoError, SecureKey, Salt};
+use crate::types::{CryptoError, SecureKey, Salt};
 
 pub fn derive_key(password: &str, salt: &Salt) -> Result<SecureKey, CryptoError> {
     let salt_string = SaltString::encode_b64(salt)
@@ -24,7 +24,7 @@ pub fn derive_key(password: &str, salt: &Salt) -> Result<SecureKey, CryptoError>
     
     let mut key = SecureKey::default();
     if let Some(hash) = password_hash.hash {
-        let hash_bytes = hash.as_bytes();
+        let hash_bytes: &[u8] = hash.as_bytes();
         if hash_bytes.len() >= 32 {
             key[..32].copy_from_slice(&hash_bytes[..32]);
         } else {

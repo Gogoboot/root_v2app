@@ -7,7 +7,7 @@ use chacha20poly1305::{
     ChaCha20Poly1305, Nonce, Key,
 };
 use rand::RngCore;
-use crate::crypto::types::{CryptoError, EncryptedBlob, SecureKey};
+use crate::types::{CryptoError, EncryptedBlob, SecureKey};
 
 pub fn encrypt(key: &SecureKey, plaintext: &[u8]) -> Result<EncryptedBlob, CryptoError> {
     let mut nonce_bytes = [0u8; 12];

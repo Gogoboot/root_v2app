@@ -1,0 +1,11 @@
+[package]
+name = "root-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+root-identity = { path = "../root-identity" }
+root-storage  = { path = "../root-storage" }
+root-economy  = { path = "../root-economy" }
+root-network  = { path = "../root-network" }
+tokio         = { version = "1", features = ["full"] }

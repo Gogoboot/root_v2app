@@ -3,40 +3,32 @@
 // FFI функции: отправка и получение сообщений
 // ============================================================
 
-use crate::storage::{Message, StorageError};
+use root_storage::{Message, StorageError};
 use std::time::{SystemTime, UNIX_EPOCH};
-
 use super::identity::get_public_key;
-use super::state::CURRENT_DB;
+use super::state::APP_STATE;
 use super::types::{ApiError, MessageInfo};
 
 pub fn send_message(to_key: String, content: String) -> Result<u64, ApiError> {
     let from_key = get_public_key()?;
     let msg = Message::new(from_key, to_key, content);
-
-    let mut db_guard = CURRENT_DB.lock().unwrap();
-    let db = db_guard.as_mut().ok_or(ApiError::DatabaseNotOpen)?;
-
+    let mut state = APP_STATE.lock().unwrap();
+    let db = state.database.as_mut().ok_or(ApiError::DatabaseNotOpen)?;
     let id = db
         .save_message(msg)
-        .map_err(|e| ApiError::StorageError(e.to_string()))?;
-
+        .map_err(|e: StorageError| ApiError::StorageError(e.to_string()))?;
     println!("  ✉️  Сообщение #{} сохранено", id);
     Ok(id)
 }
 
 pub fn get_messages() -> Result<Vec<MessageInfo>, ApiError> {
     let public_key = get_public_key()?;
-
-    let db_guard = CURRENT_DB.lock().unwrap();
-    let db = db_guard.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
-
+    let state = APP_STATE.lock().unwrap();
+    let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     let messages = db
         .get_messages(&public_key)
-        .map_err(|e| ApiError::StorageError(e.to_string()))?;
-
+        .map_err(|e: StorageError| ApiError::StorageError(e.to_string()))?;
     let contacts = db.get_contacts().unwrap_or_default();
-
     let infos = messages
         .into_iter()
         .map(|m| {
@@ -55,23 +47,22 @@ pub fn get_messages() -> Result<Vec<MessageInfo>, ApiError> {
             }
         })
         .collect();
-
     Ok(infos)
 }
 
 pub fn get_unread_count() -> Result<u64, ApiError> {
     let public_key = get_public_key()?;
-    let db_guard = CURRENT_DB.lock().unwrap();
-    let db = db_guard.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
+    let state = APP_STATE.lock().unwrap();
+    let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     db.unread_count(&public_key)
         .map_err(|e: StorageError| ApiError::StorageError(e.to_string()))
 }
 
 pub fn mark_message_read(msg_id: u64) -> Result<(), ApiError> {
-    let db_guard = CURRENT_DB.lock().unwrap();
-    let db = db_guard.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
+    let state = APP_STATE.lock().unwrap();
+    let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     db.mark_read(msg_id)
-        .map_err(|e| ApiError::StorageError(e.to_string()))
+        .map_err(|e: StorageError| ApiError::StorageError(e.to_string()))
 }
 
 pub fn now_secs() -> u64 {

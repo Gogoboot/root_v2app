@@ -3,36 +3,27 @@
 // FFI функции: баланс, переводы, stake, vesting
 // ============================================================
 
-use crate::economy::{DROPS_PER_SAP, GENESIS_BONUS_DROPS};
-
+use root_economy::{DROPS_PER_SAP, GENESIS_BONUS_DROPS, VestingSchedule};
 use super::identity::get_public_key;
 use super::messaging::now_secs;
-use super::state::CURRENT_LEDGER;
+use super::state::APP_STATE;
 use super::types::{ApiError, BalanceInfo, NodeStatus, P2pWarning, TxResult, VestingInfo};
 
 pub fn get_balance() -> Result<BalanceInfo, ApiError> {
     let public_key = get_public_key()?;
-    let ledger_guard = CURRENT_LEDGER.lock().unwrap();
-    let ledger = ledger_guard
-        .as_ref()
-        .ok_or(ApiError::LedgerNotInitialized)?;
-
+    let state = APP_STATE.lock().unwrap();
+    let ledger = state.ledger.as_ref().ok_or(ApiError::LedgerNotInitialized)?;
     let account = ledger
         .accounts
         .get(&public_key)
         .ok_or_else(|| ApiError::EconomyError("Аккаунт не найден".to_string()))?;
-
     let (vesting_avail, vesting_locked) = if let Some(v) = &account.vesting {
         let avail = v.available_drops();
         let locked = v.total_drops.saturating_sub(avail);
-        (
-            avail as f64 / DROPS_PER_SAP as f64,
-            locked as f64 / DROPS_PER_SAP as f64,
-        )
+        (avail as f64 / DROPS_PER_SAP as f64, locked as f64 / DROPS_PER_SAP as f64)
     } else {
         (0.0, 0.0)
     };
-
     Ok(BalanceInfo {
         public_key,
         balance_sap: account.balance_drops as f64 / DROPS_PER_SAP as f64,
@@ -47,22 +38,15 @@ pub fn get_balance() -> Result<BalanceInfo, ApiError> {
 
 pub fn transfer(to_key: String, amount_sap: f64) -> Result<TxResult, ApiError> {
     if amount_sap <= 0.0 {
-        return Err(ApiError::InvalidInput(
-            "Сумма должна быть больше 0".to_string(),
-        ));
+        return Err(ApiError::InvalidInput("Сумма должна быть больше 0".to_string()));
     }
     let from_key = get_public_key()?;
     let amount_drops = (amount_sap * DROPS_PER_SAP as f64) as u64;
-
-    let mut ledger_guard = CURRENT_LEDGER.lock().unwrap();
-    let ledger = ledger_guard
-        .as_mut()
-        .ok_or(ApiError::LedgerNotInitialized)?;
-
+    let mut state = APP_STATE.lock().unwrap();
+    let ledger = state.ledger.as_mut().ok_or(ApiError::LedgerNotInitialized)?;
     let tx = ledger
         .transfer(&from_key, &to_key, amount_drops)
         .map_err(|e| ApiError::EconomyError(e.to_string()))?;
-
     Ok(TxResult {
         tx_id: tx.id.clone(),
         amount_sap: tx.amount_sap(),
@@ -75,22 +59,15 @@ pub fn transfer(to_key: String, amount_sap: f64) -> Result<TxResult, ApiError> {
 
 pub fn p2p_exchange(to_key: String, amount_sap: f64) -> Result<TxResult, ApiError> {
     if amount_sap <= 0.0 {
-        return Err(ApiError::InvalidInput(
-            "Сумма должна быть больше 0".to_string(),
-        ));
+        return Err(ApiError::InvalidInput("Сумма должна быть больше 0".to_string()));
     }
     let from_key = get_public_key()?;
     let amount_drops = (amount_sap * DROPS_PER_SAP as f64) as u64;
-
-    let mut ledger_guard = CURRENT_LEDGER.lock().unwrap();
-    let ledger = ledger_guard
-        .as_mut()
-        .ok_or(ApiError::LedgerNotInitialized)?;
-
+    let mut state = APP_STATE.lock().unwrap();
+    let ledger = state.ledger.as_mut().ok_or(ApiError::LedgerNotInitialized)?;
     let tx = ledger
         .p2p_exchange(&from_key, &to_key, amount_drops)
         .map_err(|e| ApiError::EconomyError(e.to_string()))?;
-
     Ok(TxResult {
         tx_id: tx.id.clone(),
         amount_sap: tx.amount_sap(),
@@ -104,9 +81,7 @@ pub fn p2p_exchange(to_key: String, amount_sap: f64) -> Result<TxResult, ApiErro
 pub fn get_p2p_warning() -> P2pWarning {
     P2pWarning {
         show_warning: true,
-        message: "ROOT не контролирует фиатный канал. \
-                 Банковский перевод раскрывает вашу личность контрагенту."
-            .to_string(),
+        message: "ROOT не контролирует фиатный канал. Банковский перевод раскрывает вашу личность контрагенту.".to_string(),
         safe_methods: vec![
             "Наличные при личной встрече".to_string(),
             "Monero (XMR)".to_string(),
@@ -122,29 +97,18 @@ pub fn get_p2p_warning() -> P2pWarning {
 
 pub fn get_vesting_info() -> Result<Option<VestingInfo>, ApiError> {
     let public_key = get_public_key()?;
-    let ledger_guard = CURRENT_LEDGER.lock().unwrap();
-    let ledger = ledger_guard
-        .as_ref()
-        .ok_or(ApiError::LedgerNotInitialized)?;
-
+    let state = APP_STATE.lock().unwrap();
+    let ledger = state.ledger.as_ref().ok_or(ApiError::LedgerNotInitialized)?;
     let account = ledger
         .accounts
         .get(&public_key)
         .ok_or_else(|| ApiError::EconomyError("Аккаунт не найден".to_string()))?;
-
-    Ok(account.vesting.as_ref().map(|v| {
+    Ok(account.vesting.as_ref().map(|v: &VestingSchedule| {
         let available = v.available_drops();
         let locked = v.total_drops.saturating_sub(available);
         let pct = available as f64 / v.total_drops as f64 * 100.0;
         let days_passed = (now_secs() - v.grant_timestamp) / 86400;
         let days_until_full = 365_u64.saturating_sub(days_passed);
-
-        // let days_until_full = if days_passed >= 365 {
-        //     0
-        // } else {
-        //     365 - days_passed
-        // };
-
         VestingInfo {
             total_sap: v.total_drops as f64 / DROPS_PER_SAP as f64,
             available_sap: available as f64 / DROPS_PER_SAP as f64,
@@ -158,40 +122,28 @@ pub fn get_vesting_info() -> Result<Option<VestingInfo>, ApiError> {
 
 pub fn stake_node() -> Result<bool, ApiError> {
     let public_key = get_public_key()?;
-    let mut ledger_guard = CURRENT_LEDGER.lock().unwrap();
-    let ledger = ledger_guard
-        .as_mut()
-        .ok_or(ApiError::LedgerNotInitialized)?;
-    ledger
-        .stake(&public_key)
-        .map_err(|e| ApiError::EconomyError(e.to_string()))?;
+    let mut state = APP_STATE.lock().unwrap();
+    let ledger = state.ledger.as_mut().ok_or(ApiError::LedgerNotInitialized)?;
+    ledger.stake(&public_key).map_err(|e| ApiError::EconomyError(e.to_string()))?;
     Ok(true)
 }
 
 pub fn unstake_node() -> Result<bool, ApiError> {
     let public_key = get_public_key()?;
-    let mut ledger_guard = CURRENT_LEDGER.lock().unwrap();
-    let ledger = ledger_guard
-        .as_mut()
-        .ok_or(ApiError::LedgerNotInitialized)?;
-    ledger
-        .unstake(&public_key)
-        .map_err(|e| ApiError::EconomyError(e.to_string()))?;
+    let mut state = APP_STATE.lock().unwrap();
+    let ledger = state.ledger.as_mut().ok_or(ApiError::LedgerNotInitialized)?;
+    ledger.unstake(&public_key).map_err(|e| ApiError::EconomyError(e.to_string()))?;
     Ok(true)
 }
 
 pub fn get_node_status() -> Result<NodeStatus, ApiError> {
     let public_key = get_public_key()?;
-    let ledger_guard = CURRENT_LEDGER.lock().unwrap();
-    let ledger = ledger_guard
-        .as_ref()
-        .ok_or(ApiError::LedgerNotInitialized)?;
-
+    let state = APP_STATE.lock().unwrap();
+    let ledger = state.ledger.as_ref().ok_or(ApiError::LedgerNotInitialized)?;
     let account = ledger
         .accounts
         .get(&public_key)
         .ok_or_else(|| ApiError::EconomyError("Аккаунт не найден".to_string()))?;
-
     Ok(NodeStatus {
         public_key: public_key.clone(),
         is_active: account.is_active_node(),
@@ -200,7 +152,7 @@ pub fn get_node_status() -> Result<NodeStatus, ApiError> {
         offense_count: account.offense_count,
         genesis_claimed: account.genesis_claimed,
         tx_count: account.tx_history.len(),
-        peer_count: *super::state::PEER_COUNT.lock().unwrap(),
+        peer_count: state.peer_count,
         network: crate::NETWORK_ID.to_string(),
         version: crate::VERSION.to_string(),
     })
@@ -208,10 +160,8 @@ pub fn get_node_status() -> Result<NodeStatus, ApiError> {
 
 pub fn claim_genesis(ip: String, device_id: String) -> Result<f64, ApiError> {
     let public_key = get_public_key()?;
-    let mut ledger_guard = CURRENT_LEDGER.lock().unwrap();
-    let ledger = ledger_guard
-        .as_mut()
-        .ok_or(ApiError::LedgerNotInitialized)?;
+    let mut state = APP_STATE.lock().unwrap();
+    let ledger = state.ledger.as_mut().ok_or(ApiError::LedgerNotInitialized)?;
     ledger
         .claim_genesis_bonus(&public_key, &ip, &device_id)
         .map_err(|e| ApiError::EconomyError(e.to_string()))?;

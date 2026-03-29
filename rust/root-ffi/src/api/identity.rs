@@ -3,10 +3,9 @@
 // FFI функции: генерация и восстановление ключей
 // ============================================================
 
-use crate::economy::Ledger;
-use crate::identity::Identity;
-
-use super::state::{CURRENT_DB, CURRENT_IDENTITY, CURRENT_LEDGER};
+use root_identity::Identity;
+use root_economy::Ledger;
+use super::state::APP_STATE;
 use super::types::{ApiError, IdentityInfo};
 
 pub fn generate_identity() -> Result<IdentityInfo, ApiError> {
@@ -23,10 +22,11 @@ pub fn generate_identity() -> Result<IdentityInfo, ApiError> {
     let mut ledger = Ledger::new();
     ledger.get_or_create(&pubkey_hex);
 
-    *CURRENT_IDENTITY.lock().unwrap() = Some(identity);
-    *CURRENT_LEDGER.lock().unwrap() = Some(ledger);
+    let mut state = APP_STATE.lock().unwrap();
+    state.identity = Some(identity);
+    state.ledger = Some(ledger);
 
-    if let Some(db) = CURRENT_DB.lock().unwrap().as_ref() {
+    if let Some(db) = state.database.as_ref() {
         let _ = db.save_identity(&pubkey_hex, &mnemonic_str);
         println!("  ✅ Identity сохранена в БД");
     }
@@ -53,22 +53,23 @@ pub fn restore_identity(mnemonic: String) -> Result<IdentityInfo, ApiError> {
     let mut ledger = Ledger::new();
     ledger.get_or_create(&pubkey_hex);
 
-    *CURRENT_IDENTITY.lock().unwrap() = Some(identity);
-    *CURRENT_LEDGER.lock().unwrap() = Some(ledger);
+    let mut state = APP_STATE.lock().unwrap();
+    state.identity = Some(identity);
+    state.ledger = Some(ledger);
 
     println!("  ✅ Identity восстановлена: {}...", &info.public_key[..16]);
     Ok(info)
 }
 
 pub fn get_public_key() -> Result<String, ApiError> {
-    let guard = CURRENT_IDENTITY.lock().unwrap();
-    let identity = guard.as_ref().ok_or(ApiError::IdentityNotInitialized)?;
+    let state = APP_STATE.lock().unwrap();
+    let identity = state.identity.as_ref().ok_or(ApiError::IdentityNotInitialized)?;
     Ok(hex::encode(identity.verifying_key.as_bytes()))
 }
 
 pub fn sign_message(message: Vec<u8>) -> Result<Vec<u8>, ApiError> {
-    let guard = CURRENT_IDENTITY.lock().unwrap();
-    let identity = guard.as_ref().ok_or(ApiError::IdentityNotInitialized)?;
+    let state = APP_STATE.lock().unwrap();
+    let identity = state.identity.as_ref().ok_or(ApiError::IdentityNotInitialized)?;
     let signature = identity.sign(&message);
     Ok(signature.to_bytes().to_vec())
 }

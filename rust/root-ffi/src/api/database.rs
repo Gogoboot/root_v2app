@@ -3,64 +3,68 @@
 // FFI функции: открытие БД, Panic Button
 // ============================================================
 
-use crate::identity::Identity;
-use crate::storage::Database;
-
-use super::state::{CURRENT_DB, CURRENT_IDENTITY, CURRENT_LEDGER, PANIC_ACTIVATED};
+use root_identity::Identity;
+use root_storage::Database;
+use super::state::APP_STATE;
 use super::types::ApiError;
 
 pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiError> {
     let current_dir = std::env::current_dir().unwrap_or_default();
     println!("  📁 Рабочая папка: {:?}", current_dir);
 
-    if *PANIC_ACTIVATED.lock().unwrap() {
-        return Err(ApiError::PanicActivated);
+    {
+        let state = APP_STATE.lock().unwrap();
+        if state.panic_activated {
+            return Err(ApiError::PanicActivated);
+        }
     }
 
-    let db =
-        Database::open(&db_path, &password).map_err(|e| ApiError::StorageError(e.to_string()))?;
+    let db = Database::open(&db_path, &password)
+        .map_err(|e: root_storage::StorageError| ApiError::StorageError(e.to_string()))?;
 
     db.initialize()
-        .map_err(|e| ApiError::StorageError(e.to_string()))?;
+        .map_err(|e: root_storage::StorageError| ApiError::StorageError(e.to_string()))?;
 
-    // Загружаем identity из БД если она сохранена
+    let mut state = APP_STATE.lock().unwrap();
+
     if let Ok(Some((_, mnemonic))) = db.load_identity() {
         use bip39::Mnemonic;
         if let Ok(parsed) = mnemonic.parse::<Mnemonic>() {
             let identity = Identity::from_mnemonic(&parsed);
-            *CURRENT_IDENTITY.lock().unwrap() = Some(identity);
+            state.identity = Some(identity);
             println!("  ✅ Identity загружена из БД");
         }
     }
 
-    *CURRENT_DB.lock().unwrap() = Some(db);
+    state.database = Some(db);
     println!("  ✅ База данных разблокирована: {}", db_path);
     Ok(true)
 }
 
 pub fn panic_button() -> Result<(), ApiError> {
-    println!("  🆘 PANIC BUTTON — уничтожение данных...");
-    *PANIC_ACTIVATED.lock().unwrap() = true;
+    println!("  💣 PANIC BUTTON — уничтожение данных...");
+    let mut state = APP_STATE.lock().unwrap();
+    state.panic_activated = true;
 
-    if let Some(db) = CURRENT_DB.lock().unwrap().as_mut() {
+    if let Some(db) = state.database.as_mut() {
         db.panic_destroy();
     }
 
-    *CURRENT_IDENTITY.lock().unwrap() = None;
-    *CURRENT_LEDGER.lock().unwrap() = None;
-    *CURRENT_DB.lock().unwrap() = None;
+    state.identity = None;
+    state.ledger   = None;
+    state.database = None;
 
     println!("  ✅ Все данные уничтожены. Перезапусти приложение.");
     Err(ApiError::PanicActivated)
 }
 
 pub fn verify_db_integrity() -> Result<bool, ApiError> {
-    let db_guard = CURRENT_DB.lock().unwrap();
-    let db = db_guard.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
+    let state = APP_STATE.lock().unwrap();
+    let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     db.verify_integrity()
-        .map_err(|e| ApiError::StorageError(e.to_string()))
+        .map_err(|e: root_storage::StorageError| ApiError::StorageError(e.to_string()))
 }
 
 pub fn is_panic_activated() -> bool {
-    *PANIC_ACTIVATED.lock().unwrap()
+    APP_STATE.lock().unwrap().panic_activated
 }
