@@ -8,16 +8,16 @@
 //1. Добавить использование после завершения задачи #37
 //2. Удалить атрибут когда поле станет активно использоваться
 
-
-
-use root_crypto::{derive_key, encrypt, decrypt, pack_for_storage, unpack_from_storage, SecureKey, Salt};
-use crate::key::SaltManager; // <-- Импортируем новый менеджер
-use rusqlite::{Connection, params};
-use std::time::{SystemTime, UNIX_EPOCH};
 use super::error::StorageError;
 use super::merkle::MerkleTree;
 use super::models::{Contact, Message};
 use super::panic::PanicButton;
+use crate::key::SaltManager; // <-- Импортируем новый менеджер
+use root_crypto::{
+    Salt, SecureKey, decrypt, derive_key, encrypt, pack_for_storage, unpack_from_storage,
+};
+use rusqlite::{Connection, params};
+use std::time::{SystemTime, UNIX_EPOCH};
 use zeroize::Zeroize;
 
 pub struct Database {
@@ -25,8 +25,8 @@ pub struct Database {
     key: SecureKey,
     // Соль теперь управляется внутри salt_manager, но мы можем оставить копию для отладки/логики,
     // если нужно. В данной реализации мы храним менеджер, чтобы он жил столько же, сколько БД.
-    #[expect(dead_code)]    // С пометкой "это временно"
-    salt_manager: SaltManager, 
+    #[expect(dead_code)] // С пометкой "это временно"
+    salt_manager: SaltManager,
     merkle: MerkleTree,
     db_path: String,
     panicked: bool,
@@ -36,47 +36,47 @@ impl Database {
     /// Открывает БД, деривирует ключ через Argon2id используя соль из Keychain (или мигрирует файл).
     pub fn open(path: &str, password: &str) -> Result<Self, StorageError> {
         println!("  🔑 Инициализация SaltManager (Keychain/Migration)...");
-        
+
         // Определяем директорию приложения для SaltManager.
         // Обычно это родительская директория от файла БД или специфичный путь.
         // Если БД лежит в ~/.local/share/root_app/db.sqlite, то dir будет ~/.local/share/root_app/
         let db_path_obj = std::path::PathBuf::from(path);
-        let app_data_dir = db_path_obj.parent()
+        let app_data_dir = db_path_obj
+            .parent()
             .ok_or(StorageError::Database(rusqlite::Error::SqliteFailure(
-                rusqlite::ffi::Error::new(1), 
-                Some("Invalid DB path".to_string())
+                rusqlite::ffi::Error::new(1),
+                Some("Invalid DB path".to_string()),
             )))?
             .to_path_buf();
 
         // 1. Создаем менеджер соли (выполняет чтение из Keychain или миграцию)
-        let salt_manager = SaltManager::new(&app_data_dir)
-            .map_err(|e| StorageError::KeyError(e.to_string()))?;
+        let salt_manager =
+            SaltManager::new(&app_data_dir).map_err(|e| StorageError::KeyError(e.to_string()))?;
 
         println!("  🔑 Генерация ключа через Argon2id...");
         let start = now_millis();
 
         // 2. Получаем соль для деривации
-        let salt_bytes = salt_manager.get_salt()
+        let salt_bytes = salt_manager
+            .get_salt()
             .map_err(|e| StorageError::KeyError(e.to_string()))?;
-        
+
         // Копируем соль в Zeroizing буфер для безопасной передачи в derive_key
         let mut salt = Salt::default();
         salt.copy_from_slice(salt_bytes);
 
         // 3. Деривируем ключ
-        let key = derive_key(password, &salt)
-            .map_err(|_| StorageError::KeyDerivationFailed)?;
-        
+        let key = derive_key(password, &salt).map_err(|_| StorageError::KeyDerivationFailed)?;
+
         // Очищаем локальную копию соли сразу после деривации (она больше не нужна в стеке)
-        salt.zeroize(); 
+        salt.zeroize();
 
         let elapsed = now_millis() - start;
         println!("  ✅ Ключ готов за {}ms", elapsed);
 
         // 4. Открываем SQLite соединение
         // Примечание: Сама БД теперь содержит только зашифрованные данные, SQLCipher не нужен.
-        let conn = Connection::open(path)
-            .map_err(StorageError::Database)?;
+        let conn = Connection::open(path).map_err(StorageError::Database)?;
 
         Ok(Database {
             conn: Some(conn),
@@ -93,8 +93,9 @@ impl Database {
     }
 
     pub fn initialize(&self) -> Result<(), StorageError> {
-        self.conn()?.execute_batch(
-            "CREATE TABLE IF NOT EXISTS messages (
+        self.conn()?
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 from_key TEXT NOT NULL,
                 to_key TEXT NOT NULL,
@@ -122,8 +123,9 @@ impl Database {
                 created_at INTEGER NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_key, timestamp);
-            CREATE INDEX IF NOT EXISTS idx_messages_from ON messages(from_key, timestamp);"
-        ).map_err(StorageError::Database)?;
+            CREATE INDEX IF NOT EXISTS idx_messages_from ON messages(from_key, timestamp);",
+            )
+            .map_err(StorageError::Database)?;
         println!("  📋 Таблицы инициализированы");
         Ok(())
     }
@@ -137,8 +139,8 @@ impl Database {
         let hash_hex = hex::encode(hash);
 
         let plaintext = msg.content.clone().into_bytes();
-        let encrypted = encrypt(&self.key, &plaintext)
-            .map_err(|_| StorageError::EncryptionFailed)?;
+        let encrypted =
+            encrypt(&self.key, &plaintext).map_err(|_| StorageError::EncryptionFailed)?;
         let blob = pack_for_storage(&encrypted);
         let content_to_save = hex::encode(blob);
 
@@ -146,8 +148,16 @@ impl Database {
         conn.execute(
             "INSERT INTO messages (from_key, to_key, content, timestamp, is_read, merkle_hash)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![msg.from_key, msg.to_key, content_to_save, msg.timestamp, msg.is_read as i32, hash_hex],
-        ).map_err(StorageError::Database)?;
+            params![
+                msg.from_key,
+                msg.to_key,
+                content_to_save,
+                msg.timestamp,
+                msg.is_read as i32,
+                hash_hex
+            ],
+        )
+        .map_err(StorageError::Database)?;
 
         let id = conn.last_insert_rowid() as u64;
         msg.id = Some(id);
@@ -157,7 +167,8 @@ impl Database {
         conn.execute(
             "INSERT INTO merkle_roots (root_hash, msg_count, timestamp) VALUES (?1, ?2, ?3)",
             params![root, self.merkle.len() as i64, now_secs()? as i64],
-        ).map_err(StorageError::Database)?;
+        )
+        .map_err(StorageError::Database)?;
 
         Ok(id)
     }
@@ -168,10 +179,12 @@ impl Database {
         }
 
         let conn = self.conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, from_key, to_key, content, timestamp, is_read
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, from_key, to_key, content, timestamp, is_read
              FROM messages WHERE to_key = ?1 OR from_key = ?1 ORDER BY timestamp ASC",
-        ).map_err(StorageError::Database)?;
+            )
+            .map_err(StorageError::Database)?;
 
         let messages = stmt
             .query_map(params![public_key], |row| {
@@ -182,12 +195,14 @@ impl Database {
                 let timestamp: i64 = row.get(4)?;
                 let is_read: i32 = row.get(5)?;
 
-                let blob = hex::decode(&content_encrypted)
-                    .map_err(|_| rusqlite::Error::InvalidColumnName("hex decode failed".to_string()))?;
+                let blob = hex::decode(&content_encrypted).map_err(|_| {
+                    rusqlite::Error::InvalidColumnName("hex decode failed".to_string())
+                })?;
                 let encrypted = unpack_from_storage(&blob)
                     .map_err(|_| rusqlite::Error::InvalidColumnName("unpack failed".to_string()))?;
-                let plaintext = decrypt(&self.key, &encrypted)
-                    .map_err(|_| rusqlite::Error::InvalidColumnName("decrypt failed".to_string()))?;
+                let plaintext = decrypt(&self.key, &encrypted).map_err(|_| {
+                    rusqlite::Error::InvalidColumnName("decrypt failed".to_string())
+                })?;
                 let content = String::from_utf8(plaintext)
                     .map_err(|_| rusqlite::Error::InvalidColumnName("utf8 failed".to_string()))?;
 
@@ -210,10 +225,13 @@ impl Database {
         if self.panicked {
             return Err(StorageError::PanicButtonActivated);
         }
-        let updated = self.conn()?.execute(
-            "UPDATE messages SET is_read = 1 WHERE id = ?1",
-            params![msg_id as i64],
-        ).map_err(StorageError::Database)?;
+        let updated = self
+            .conn()?
+            .execute(
+                "UPDATE messages SET is_read = 1 WHERE id = ?1",
+                params![msg_id as i64],
+            )
+            .map_err(StorageError::Database)?;
         if updated == 0 {
             return Err(StorageError::MessageNotFound(msg_id));
         }
@@ -224,11 +242,14 @@ impl Database {
         if self.panicked {
             return Err(StorageError::PanicButtonActivated);
         }
-        let count: i64 = self.conn()?.query_row(
-            "SELECT COUNT(*) FROM messages WHERE to_key = ?1 AND is_read = 0",
-            params![public_key],
-            |row| row.get(0),
-        ).map_err(StorageError::Database)?;
+        let count: i64 = self
+            .conn()?
+            .query_row(
+                "SELECT COUNT(*) FROM messages WHERE to_key = ?1 AND is_read = 0",
+                params![public_key],
+                |row| row.get(0),
+            )
+            .map_err(StorageError::Database)?;
         Ok(count as u64)
     }
 
@@ -236,10 +257,18 @@ impl Database {
         if self.panicked {
             return Err(StorageError::PanicButtonActivated);
         }
+
+        // Шифруем мнемонику перед записью в БД
+        let encrypted =
+            encrypt(&self.key, mnemonic.as_bytes()).map_err(|_| StorageError::EncryptionFailed)?;
+        let blob = pack_for_storage(&encrypted);
+        let mnemonic_hex = hex::encode(blob);
+
         self.conn()?.execute(
-            "INSERT OR REPLACE INTO identity (id, public_key, mnemonic, created_at) VALUES (1, ?1, ?2, ?3)",
-            params![public_key, mnemonic, now_secs()?],
-        ).map_err(StorageError::Database)?;
+        "INSERT OR REPLACE INTO identity (id, public_key, mnemonic, created_at) VALUES (1, ?1, ?2, ?3)",
+        params![public_key, mnemonic_hex, now_secs()?],
+    ).map_err(StorageError::Database)?;
+
         Ok(())
     }
 
@@ -247,12 +276,28 @@ impl Database {
         if self.panicked {
             return Err(StorageError::PanicButtonActivated);
         }
+
         let conn = self.conn()?;
-        let mut stmt = conn.prepare("SELECT public_key, mnemonic FROM identity WHERE id = 1")
+        let mut stmt = conn
+            .prepare("SELECT public_key, mnemonic FROM identity WHERE id = 1")
             .map_err(StorageError::Database)?;
         let mut rows = stmt.query([]).map_err(StorageError::Database)?;
+
         if let Some(row) = rows.next().map_err(StorageError::Database)? {
-            Ok(Some((row.get(0).map_err(StorageError::Database)?, row.get(1).map_err(StorageError::Database)?)))
+            let public_key: String = row.get(0).map_err(StorageError::Database)?;
+            let mnemonic_hex: String = row.get(1).map_err(StorageError::Database)?;
+
+            // Расшифровываем мнемонику при чтении
+            let blob =
+                hex::decode(&mnemonic_hex).map_err(|e| StorageError::Crypto(e.to_string()))?;
+            let encrypted =
+                unpack_from_storage(&blob).map_err(|e| StorageError::Crypto(e.to_string()))?;
+            let plaintext =
+                decrypt(&self.key, &encrypted).map_err(|_| StorageError::EncryptionFailed)?;
+            let mnemonic =
+                String::from_utf8(plaintext).map_err(|e| StorageError::Crypto(e.to_string()))?;
+
+            Ok(Some((public_key, mnemonic)))
         } else {
             Ok(None)
         }
@@ -262,11 +307,14 @@ impl Database {
         if self.panicked {
             return Err(StorageError::PanicButtonActivated);
         }
-        let count: i64 = self.conn()?.query_row(
-            "SELECT COUNT(*) FROM contacts WHERE nickname = ?1 AND public_key != ?2",
-            params![contact.nickname, contact.public_key],
-            |row| row.get(0),
-        ).map_err(StorageError::Database)?;
+        let count: i64 = self
+            .conn()?
+            .query_row(
+                "SELECT COUNT(*) FROM contacts WHERE nickname = ?1 AND public_key != ?2",
+                params![contact.nickname, contact.public_key],
+                |row| row.get(0),
+            )
+            .map_err(StorageError::Database)?;
         if count > 0 {
             println!("  ⚠️  Имя '{}' уже занято", contact.nickname);
         }
@@ -282,7 +330,8 @@ impl Database {
             return Err(StorageError::PanicButtonActivated);
         }
         let conn = self.conn()?;
-        let mut stmt = conn.prepare("SELECT public_key, nickname, added_at, reputation FROM contacts")
+        let mut stmt = conn
+            .prepare("SELECT public_key, nickname, added_at, reputation FROM contacts")
             .map_err(StorageError::Database)?;
         let contacts = stmt
             .query_map([], |row| {
@@ -303,7 +352,8 @@ impl Database {
             return Err(StorageError::PanicButtonActivated);
         }
         let conn = self.conn()?;
-        let mut stmt = conn.prepare("SELECT merkle_hash FROM messages ORDER BY id ASC")
+        let mut stmt = conn
+            .prepare("SELECT merkle_hash FROM messages ORDER BY id ASC")
             .map_err(StorageError::Database)?;
         let db_hashes: Vec<String> = stmt
             .query_map([], |row| row.get(0))?
@@ -312,8 +362,8 @@ impl Database {
 
         let mut verify_tree = MerkleTree::new();
         for hash_hex in &db_hashes {
-            let hash_bytes = hex::decode(hash_hex)
-                .map_err(|e| StorageError::Crypto(e.to_string()))?;
+            let hash_bytes =
+                hex::decode(hash_hex).map_err(|e| StorageError::Crypto(e.to_string()))?;
             let mut hash = [0u8; 32];
             hash.copy_from_slice(&hash_bytes);
             verify_tree.add_leaf(hash);
@@ -331,11 +381,24 @@ impl Database {
         println!("  ║         СТАТИСТИКА STORAGE ROOT v2.0         ║");
         println!("  ╠══════════════════════════════════════════════╣");
         println!("  ║ Файл БД:        {:>26}  ║", self.db_path);
-        println!("  ║ Шифрование:     {:>26}  ║", "ChaCha20-Poly1305 (app-level)");
+        println!(
+            "  ║ Шифрование:     {:>26}  ║",
+            "ChaCha20-Poly1305 (app-level)"
+        );
         println!("  ║ KDF:            {:>26}  ║", "Argon2id (19MB, 2 iter)");
-        println!("  ║ Соль:           {:>26}  ║", "OS Keychain/Keystore (#17 DONE)");
+        println!(
+            "  ║ Соль:           {:>26}  ║",
+            "OS Keychain/Keystore (#17 DONE)"
+        );
         println!("  ║ Merkle листьев: {:>26}  ║", self.merkle.len());
-        println!("  ║ Panic Button:   {:>26}  ║", if self.panicked { "🆘 АКТИВИРОВАН" } else { "✅ Не активирован" });
+        println!(
+            "  ║ Panic Button:   {:>26}  ║",
+            if self.panicked {
+                "🆘 АКТИВИРОВАН"
+            } else {
+                "✅ Не активирован"
+            }
+        );
         println!("  ╚══════════════════════════════════════════════╝\n");
     }
 }
@@ -344,8 +407,8 @@ impl Drop for Database {
     fn drop(&mut self) {
         // Обнуляем ключ
         self.key.zeroize();
-        
-        // SaltManager при дропе автоматически очистит внутреннюю соль, 
+
+        // SaltManager при дропе автоматически очистит внутреннюю соль,
         // так как она хранится в Zeroizing<[u8; 32]> внутри него.
         // Явное действие не требуется, но можно добавить логирование.
     }
@@ -355,10 +418,12 @@ fn now_secs() -> Result<u64, StorageError> {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
-        .map_err(|e| StorageError::Database(rusqlite::Error::SqliteFailure(
-            rusqlite::ffi::Error::new(1), 
-            Some(format!("System time error: {}", e))
-        )))
+        .map_err(|e| {
+            StorageError::Database(rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(1),
+                Some(format!("System time error: {}", e)),
+            ))
+        })
 }
 
 fn now_millis() -> u64 {
