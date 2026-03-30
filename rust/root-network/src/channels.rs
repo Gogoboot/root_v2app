@@ -8,7 +8,7 @@ use libp2p::{SwarmBuilder, gossipsub, mdns, noise, swarm::SwarmEvent, tcp, yamux
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, oneshot};
 
-use super::behaviour::{ROOT_TOPIC, RootBehaviour, RootBehaviourEvent, build_gossipsub};
+use super::behaviour::{ROOT_TOPIC, RootBehaviour, RootBehaviourEvent, build_gossipsub, verify_message_sender};
 
 /// Входящее P2P сообщение — передаётся во Flutter
 #[derive(Debug, Clone)]
@@ -100,6 +100,12 @@ pub async fn start_node_channels(
                         SwarmEvent::Behaviour(RootBehaviourEvent::Gossipsub(
                             gossipsub::Event::Message { propagation_source, message, .. }
                         )) => {
+                        // Проверяем что отправитель совпадает с заявленным source (S1-T6)
+                            if !verify_message_sender(&propagation_source, &message) {
+                                println!("  ⚠️ Сообщение отклонено — подмена отправителя");
+                                continue;
+                            }
+
                             let content = String::from_utf8_lossy(&message.data).to_string();
                             let timestamp = SystemTime::now()
                                 .duration_since(UNIX_EPOCH)
