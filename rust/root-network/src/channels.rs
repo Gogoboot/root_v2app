@@ -32,7 +32,7 @@ pub struct P2pMessage {
 pub async fn start_node_channels(
     key_bytes: [u8; 32],
     shutdown_rx: oneshot::Receiver<()>,
-) -> Result<(mpsc::Sender<String>, mpsc::Receiver<P2pMessage>), Box<dyn std::error::Error>> {
+) -> Result<(mpsc::Sender<String>, mpsc::Receiver<P2pMessage>), Box<dyn std::error::Error + Send + Sync>> {
     let (tx_out, mut rx_out) = mpsc::channel::<String>(100);
     let (tx_in, rx_in) = mpsc::channel::<P2pMessage>(100);
     let tx_in_clone = tx_in.clone();

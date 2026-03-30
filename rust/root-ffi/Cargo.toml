@@ -1,5 +1,5 @@
 [package]
-name = "root_identity"
+name = "root_ffi"
 version = "0.1.0"
 edition = "2024"
 
@@ -12,7 +12,7 @@ metadata.todo = [
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(frb_expand)'] }
 
 [lib]
-name = "root_core"
+name = "root_ffi"
 crate-type = ["cdylib", "staticlib"]
 path = "src/lib.rs"
 
@@ -25,6 +25,9 @@ path = "src/cli/main.rs"
 # ── Зависимости ──────────────────────────────────────────────
 
 [dependencies]
+
+once_cell = { workspace = true } 
+
 # Криптография
 bip39          = "2.0"
 ed25519-dalek  = { version = "2.0", features = ["rand_core"] }
@@ -38,7 +41,6 @@ root-storage = { path = "../root-storage" }
 root-network = { path = "../root-network" }
 root-economy = { path = "../root-economy" }
 root-core = { path = "../root-core" }
-
 
 
 sharks         = "0.5"

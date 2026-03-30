@@ -31,6 +31,7 @@
 mod frb_generated;
 
 pub mod api;
+pub mod runtime;  // ← Добавить эту строку
 pub use root_economy as economy;
 pub use root_identity as identity;
 pub use root_network as network;

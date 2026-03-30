@@ -9,3 +9,6 @@ members = [
     "root-core",
 ]
 resolver = "2"
+
+[workspace.dependencies]  # ← Добавь это
+once_cell = "1.19"        # ← И это
