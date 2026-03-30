@@ -4,6 +4,8 @@
 // ============================================================
 
 use thiserror::Error;
+use zeroize::Zeroizing;
+
 
 #[derive(Error, Debug)]
 pub enum ApiError {
@@ -33,12 +35,13 @@ pub enum ApiError {
 }
 
 /// Информация об идентичности — передаётся в Flutter
+/// Информация об идентичности — передаётся в Flutter
 #[derive(Debug, Clone)]
 pub struct IdentityInfo {
     /// Публичный ключ в hex (64 символа)
     pub public_key: String,
-    /// 24 слова мнемоники (только при первой генерации)
-    pub mnemonic: Option<String>,
+    /// 24 слова мнемоники — защищена Zeroizing (обнуляется при drop)
+    pub mnemonic: Option<Zeroizing<String>>,
     /// Сеть: "root-mainnet-v2"
     pub network: String,
 }
