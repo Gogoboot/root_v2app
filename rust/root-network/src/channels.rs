@@ -55,6 +55,7 @@ pub async fn start_node_channels(
                 yamux::Config::default,
             )
             .expect("TCP error")
+            .with_quic()
             .with_behaviour(|key| {
                 let mdns = mdns::tokio::Behaviour::new(
                     mdns::Config::default(),
