@@ -40,3 +40,47 @@ pub fn derive_key(password: &str, salt: &Salt) -> Result<SecureKey, CryptoError>
 pub fn wipe_password<T: zeroize::Zeroize>(secret: &mut T) {
     secret.zeroize();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_derive_key_deterministic() {
+        let password = "test_password";
+        let salt = [1u8; 16];
+        
+        let key1 = derive_key(password, &salt).unwrap();
+        let key2 = derive_key(password, &salt).unwrap();
+        
+        // Один и тот же пароль + соль = одинаковый ключ
+        assert_eq!(key1.as_ref(), key2.as_ref());
+    }
+
+    #[test]
+    fn test_derive_key_different_salt() {
+        let password = "test_password";
+        let salt1 = [1u8; 16];
+        let salt2 = [2u8; 16];
+        
+        let key1 = derive_key(password, &salt1).unwrap();
+        let key2 = derive_key(password, &salt2).unwrap();
+        
+        // Разная соль = разный ключ
+        assert_ne!(key1.as_ref(), key2.as_ref());
+    }
+
+    #[test]
+    fn test_derive_key_zeroizes_on_error() {
+        // Невалидная соль (слишком короткая) должна вернуть ошибку,
+        // а не паниковать или возвращать частичные данные
+        let password = "test";
+        let bad_salt = [0u8; 8]; // ← не 16 байт
+        
+        // Этот тест зависит от реализации SaltString::encode_b64,
+        // но полезно проверить, что ошибка обрабатывается корректно
+        let result = derive_key(password, &bad_salt);
+        // Ожидаем ошибку, но не панику
+        assert!(result.is_err());
+    }
+}

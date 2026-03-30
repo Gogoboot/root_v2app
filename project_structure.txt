@@ -1,0 +1,216 @@
+﻿
+
+    Каталог: D:\work_rust_root\root_app\rust
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        29.03.2026      9:37            174 Cargo.toml                                                       
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-core
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        29.03.2026      9:49            327 Cargo.toml                                                       
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-core\src
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        29.03.2026      9:44            289 lib.rs                                                           
+-a----        30.03.2026      2:57           2014 state.rs                                                         
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-crypto
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        29.03.2026      8:53            558 Cargo.toml                                                       
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-crypto\src
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        30.03.2026      5:26           3269 argon.rs                                                         
+-a----        17.03.2026     20:31          13444 asymmetric.rs                                                    
+-a----        29.03.2026     17:08           3045 lib.rs                                                           
+-a----        17.03.2026     19:11           1843 mod.rs                                                           
+-a----        29.03.2026      8:52           1938 symmetric.rs                                                     
+-a----        30.03.2026      5:23           1613 types.rs                                                         
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-economy
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        29.03.2026      9:36            227 Cargo.toml                                                       
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-economy\src
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        14.03.2026     21:11           3261 account.rs                                                       
+-a----        14.03.2026     21:11           1841 consensus.rs                                                     
+-a----        14.03.2026     21:11           5250 constants.rs                                                     
+-a----        14.03.2026     22:16          17646 ledger.rs                                                        
+-a----        29.03.2026      9:37            762 lib.rs                                                           
+-a----        14.03.2026     21:11           1385 mod.rs                                                           
+-a----        14.03.2026     22:16           8054 protection.rs                                                    
+-a----        14.03.2026     21:59           4474 treasury.rs                                                      
+-a----        14.03.2026     21:11           5100 types.rs                                                         
+-a----        14.03.2026     22:00           3117 vesting.rs                                                       
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-ffi
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        29.03.2026      9:51           2721 Cargo.toml                                                       
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-ffi\src\api
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        29.03.2026      9:55           1276 contacts.rs                                                      
+-a----        30.03.2026      3:59           2696 database.rs                                                      
+-a----        29.03.2026      9:57           7236 economy.rs                                                       
+-a----        30.03.2026      3:50           2690 identity.rs                                                      
+-a----        29.03.2026      9:54           2631 messaging.rs                                                     
+-a----        14.03.2026     21:11           5866 mod.rs                                                           
+-a----        30.03.2026      5:53           3826 p2p.rs                                                           
+-a----        29.03.2026      9:47            752 state.rs                                                         
+-a----        14.03.2026     21:11           3314 types.rs                                                         
+-a----        29.03.2026      9:56           1090 utils.rs                                                         
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-ffi\src\cli\commands
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        14.03.2026     21:11           1454 contacts.rs                                                      
+-a----        14.03.2026     21:11           1246 db.rs                                                            
+-a----        14.03.2026     21:11           2894 identity.rs                                                      
+-a----        14.03.2026     21:11           1425 messages.rs                                                      
+-a----        14.03.2026     21:11             96 mod.rs                                                           
+-a----        30.03.2026      4:15           8489 node.rs                                                          
+-a----        14.03.2026     21:11           5895 server.rs                                                        
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-ffi\src\cli
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        14.03.2026     21:11           2516 main.rs                                                          
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-ffi\src\frb_generated
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        14.03.2026     21:11              2 mod.rs                                                           
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-ffi\src
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        29.03.2026     17:02           3587 lib.rs                                                           
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-ffi\src\storage
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        14.03.2026     21:11            913 constants.rs                                                     
+-a----        17.03.2026     17:33          16611 database.rs                                                      
+-a----        16.03.2026     14:35           1515 error.rs                                                         
+-a----        17.03.2026     17:16           8845 key.rs                                                           
+-a----        14.03.2026     22:16           3971 merkle.rs                                                        
+-a----        15.03.2026     13:38            917 mod.rs                                                           
+-a----        15.03.2026     14:16           1991 models.rs                                                        
+-a----        15.03.2026     14:12           1626 panic.rs                                                         
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-identity
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        29.03.2026      8:32            436 Cargo.toml                                                       
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-identity\src
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        30.03.2026      3:47           2853 keys.rs                                                          
+-a----        30.03.2026      4:02           1811 lib.rs                                                           
+-a----        14.03.2026     21:11            654 mod.rs                                                           
+-a----        14.03.2026     21:11           1562 protected.rs                                                     
+-a----        13.03.2026      0:55            484 seed.rs                                                          
+-a----        15.03.2026      0:03           3265 shamir.rs                                                        
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-network
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        30.03.2026      4:09            423 Cargo.toml                                                       
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-network\src
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        30.03.2026      4:04           3035 behaviour.rs                                                     
+-a----        30.03.2026      4:08           7339 channels.rs                                                      
+-a----        29.03.2026      9:20            376 lib.rs                                                           
+-a----        14.03.2026     21:11            534 mod.rs                                                           
+-a----        14.03.2026     21:11           4480 node.rs                                                          
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-storage
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        29.03.2026      9:07            549 Cargo.toml                                                       
+
+
+    Каталог: D:\work_rust_root\root_app\rust\root-storage\src
+
+
+Mode                 LastWriteTime         Length Name                                                             
+----                 -------------         ------ ----                                                             
+-a----        14.03.2026     21:11            913 constants.rs                                                     
+-a----        30.03.2026      5:33          20377 database.rs                                                      
+-a----        16.03.2026     14:35           1515 error.rs                                                         
+-a----        17.03.2026     17:16           8845 key.rs                                                           
+-a----        29.03.2026      9:03            571 lib.rs                                                           
+-a----        14.03.2026     22:16           3971 merkle.rs                                                        
+-a----        15.03.2026     13:38            917 mod.rs                                                           
+-a----        15.03.2026     14:16           1991 models.rs                                                        
+-a----        30.03.2026      2:52           1798 panic.rs                                                         
+
+

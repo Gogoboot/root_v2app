@@ -5,27 +5,30 @@
 use clap::Subcommand;
 use futures::StreamExt;
 use libp2p::{SwarmBuilder, gossipsub, mdns, noise, swarm::SwarmEvent, tcp, yamux};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::time::Duration;
 use tokio::io::AsyncBufReadExt;
+use root_network::behaviour::{RootBehaviour, RootBehaviourEvent, build_gossipsub, verify_message_sender};
 
 #[derive(Subcommand)]
 pub enum NodeAction {
-    /// Запустить узел и ждать подключений
-    Listen,
+    /// Запустить узел и ждать подключений (bootstrap режим)
+    Listen {
+        /// Порт для прослушивания (по умолчанию 7001)
+        #[arg(long, default_value = "7001")]
+        port: u16,
+    },
     /// Подключиться к узлу по адресу
     Connect {
         /// Multiaddr: /ip4/1.2.3.4/tcp/7001/p2p/PEERID
         addr: String,
     },
-    /// Показать количество пиров
+    /// Показать статус
     Status,
 }
 
 pub async fn run(action: NodeAction) -> Result<(), Box<dyn std::error::Error>> {
     match action {
-        NodeAction::Listen => cmd_listen().await,
+        NodeAction::Listen { port } => cmd_listen(port).await,
         NodeAction::Connect { addr } => cmd_connect(addr).await,
         NodeAction::Status => {
             cmd_status();
@@ -34,17 +37,33 @@ pub async fn run(action: NodeAction) -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-async fn cmd_listen() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚀 Запускаем P2P узел...");
+async fn cmd_listen(port: u16) -> Result<(), Box<dyn std::error::Error>> {
+    println!("🚀 Запускаем bootstrap узел на порту {}...", port);
     println!("📝 Введите сообщение + Enter для отправки");
     println!("   Ctrl+C для выхода\n");
 
-    let (mut swarm, local_peer_id) = build_swarm()?;
+    let local_key = libp2p::identity::Keypair::generate_ed25519();
+    let local_peer_id = local_key.public().to_peer_id();
+    let gossipsub = build_gossipsub(&local_key);
+
+    let mut swarm = SwarmBuilder::with_existing_identity(local_key)
+        .with_tokio()
+        .with_tcp(tcp::Config::default(), noise::Config::new, yamux::Config::default)?
+        .with_behaviour(|key| {
+            let mdns = mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
+            Ok(RootBehaviour { gossipsub, mdns })
+        })?
+        .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(60)))
+        .build();
+
     let topic = gossipsub::IdentTopic::new("root-network-v2");
     swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
-    swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
+
+    // Фиксированный порт — нужен для ngrok туннеля
+    swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{}", port).parse()?)?;
 
     println!("📋 Мой PeerID: {}", local_peer_id);
+    println!("🌐 Для ngrok: ngrok tcp {}\n", port);
 
     let stdin = tokio::io::stdin();
     let mut reader = tokio::io::BufReader::new(stdin).lines();
@@ -58,7 +77,35 @@ async fn cmd_listen() -> Result<(), Box<dyn std::error::Error>> {
                     Err(e) => println!("❌ Ошибка отправки: {}", e),
                 }
             }
-            event = swarm.select_next_some() => handle_event(&mut swarm, event),
+            event = swarm.select_next_some() => {
+                match event {
+                    SwarmEvent::NewListenAddr { address, .. } => {
+                        println!("📡 Адрес: {}/p2p/{}", address, local_peer_id);
+                    }
+                    SwarmEvent::Behaviour(RootBehaviourEvent::Gossipsub(
+                        gossipsub::Event::Message { propagation_source, message, .. }
+                    )) => {
+                        // Проверяем подпись отправителя
+                        if verify_message_sender(&propagation_source, &message) {
+                            let text = String::from_utf8_lossy(&message.data);
+                            println!("💬 [{}...]: {}", &propagation_source.to_string()[..8], text);
+                        }
+                    }
+                    SwarmEvent::Behaviour(RootBehaviourEvent::Mdns(mdns::Event::Discovered(peers))) => {
+                        for (peer_id, _) in peers {
+                            println!("🔍 Найден: {}...", &peer_id.to_string()[..8]);
+                            swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                        }
+                    }
+                    SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                        println!("🤝 Подключился: {}...", &peer_id.to_string()[..8]);
+                    }
+                    SwarmEvent::ConnectionClosed { peer_id, .. } => {
+                        println!("🔌 Отключился: {}...", &peer_id.to_string()[..8]);
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 }
@@ -69,7 +116,20 @@ async fn cmd_connect(target_addr: String) -> Result<(), Box<dyn std::error::Erro
     println!("🔗 Подключаемся к: {}", target_addr);
     println!("📝 Введите сообщение + Enter для отправки\n");
 
-    let (mut swarm, local_peer_id) = build_swarm()?;
+    let local_key = libp2p::identity::Keypair::generate_ed25519();
+    let local_peer_id = local_key.public().to_peer_id();
+    let gossipsub = build_gossipsub(&local_key);
+
+    let mut swarm = SwarmBuilder::with_existing_identity(local_key)
+        .with_tokio()
+        .with_tcp(tcp::Config::default(), noise::Config::new, yamux::Config::default)?
+        .with_behaviour(|key| {
+            let mdns = mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
+            Ok(RootBehaviour { gossipsub, mdns })
+        })?
+        .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(60)))
+        .build();
+
     let topic = gossipsub::IdentTopic::new("root-network-v2");
     swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
     swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
@@ -92,103 +152,38 @@ async fn cmd_connect(target_addr: String) -> Result<(), Box<dyn std::error::Erro
                     Err(e) => println!("❌ Ошибка отправки: {}", e),
                 }
             }
-            event = swarm.select_next_some() => handle_event(&mut swarm, event),
+            event = swarm.select_next_some() => {
+                match event {
+                    SwarmEvent::NewListenAddr { address, .. } => {
+                        println!("📡 Мой адрес: {}/p2p/{}", address, local_peer_id);
+                    }
+                    SwarmEvent::Behaviour(RootBehaviourEvent::Gossipsub(
+                        gossipsub::Event::Message { propagation_source, message, .. }
+                    )) => {
+                        if verify_message_sender(&propagation_source, &message) {
+                            let text = String::from_utf8_lossy(&message.data);
+                            println!("💬 [{}...]: {}", &propagation_source.to_string()[..8], text);
+                        }
+                    }
+                    SwarmEvent::Behaviour(RootBehaviourEvent::Mdns(mdns::Event::Discovered(peers))) => {
+                        for (peer_id, _) in peers {
+                            println!("🔍 Найден: {}...", &peer_id.to_string()[..8]);
+                            swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                        }
+                    }
+                    SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                        println!("🤝 Подключился: {}...", &peer_id.to_string()[..8]);
+                    }
+                    SwarmEvent::ConnectionClosed { peer_id, .. } => {
+                        println!("🔌 Отключился: {}...", &peer_id.to_string()[..8]);
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 }
 
 fn cmd_status() {
-    println!("ℹ️  Запусти 'root-cli node listen' чтобы увидеть статус пиров в реальном времени");
-}
-
-// ── Обработчик событий Swarm ─────────────────────────────────
-
-fn handle_event(swarm: &mut libp2p::Swarm<NodeBehaviour>, event: SwarmEvent<NodeBehaviourEvent>) {
-    match event {
-        SwarmEvent::NewListenAddr { address, .. } => {
-            let peer_id = swarm.local_peer_id();
-            println!("📡 Адрес: {}/p2p/{}", address, peer_id);
-            println!("   ↑ Скопируй в другой терминал: root-cli node connect <адрес>\n");
-        }
-        SwarmEvent::Behaviour(NodeBehaviourEvent::Gossipsub(gossipsub::Event::Message {
-            propagation_source,
-            message,
-            ..
-        })) => {
-            let text = String::from_utf8_lossy(&message.data);
-            println!("💬 [{}...]: {}", &propagation_source.to_string()[..8], text);
-        }
-        SwarmEvent::Behaviour(NodeBehaviourEvent::Mdns(mdns::Event::Discovered(peers))) => {
-            for (peer_id, _) in peers {
-                println!("🔍 Найден узел: {}...", &peer_id.to_string()[..8]);
-                swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
-            }
-        }
-        SwarmEvent::Behaviour(NodeBehaviourEvent::Mdns(mdns::Event::Expired(peers))) => {
-            for (peer_id, _) in peers {
-                swarm
-                    .behaviour_mut()
-                    .gossipsub
-                    .remove_explicit_peer(&peer_id);
-            }
-        }
-        SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-            println!("🤝 Подключился: {}...", &peer_id.to_string()[..8]);
-        }
-        SwarmEvent::ConnectionClosed { peer_id, .. } => {
-            println!("🔌 Отключился: {}...", &peer_id.to_string()[..8]);
-        }
-        _ => {}
-    }
-}
-
-// ── Построение Swarm ─────────────────────────────────────────
-
-fn build_swarm()
--> Result<(libp2p::Swarm<NodeBehaviour>, libp2p::PeerId), Box<dyn std::error::Error>> {
-    let local_key = libp2p::identity::Keypair::generate_ed25519();
-    let local_peer_id = local_key.public().to_peer_id();
-
-    let message_id_fn = |message: &gossipsub::Message| {
-        let mut hasher = DefaultHasher::new();
-        message.data.hash(&mut hasher);
-        gossipsub::MessageId::from(hasher.finish().to_string())
-    };
-
-    let gossipsub_config = gossipsub::ConfigBuilder::default()
-        .heartbeat_interval(Duration::from_secs(10))
-        .message_id_fn(message_id_fn)
-        .validation_mode(gossipsub::ValidationMode::Strict)
-        .build()?;
-
-    let gossipsub = gossipsub::Behaviour::new(
-        gossipsub::MessageAuthenticity::Signed(local_key.clone()),
-        gossipsub_config,
-    )?;
-
-    let swarm = SwarmBuilder::with_existing_identity(local_key.clone())
-        .with_tokio()
-        .with_tcp(
-            tcp::Config::default(),
-            noise::Config::new,
-            yamux::Config::default,
-        )?
-        .with_behaviour(|key| {
-            let mdns =
-                mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
-            Ok(NodeBehaviour { gossipsub, mdns })
-        })?
-        .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(60)))
-        .build();
-
-    Ok((swarm, local_peer_id))
-}
-
-// ── Поведение узла ───────────────────────────────────────────
-// Вынесено в один модуль — не дублируется с transport.rs
-
-#[derive(libp2p::swarm::NetworkBehaviour)]
-pub struct NodeBehaviour {
-    pub gossipsub: libp2p::gossipsub::Behaviour,
-    pub mdns: libp2p::mdns::tokio::Behaviour,
+    println!("ℹ️  Запусти 'root-cli node listen' чтобы увидеть статус пиров");
 }

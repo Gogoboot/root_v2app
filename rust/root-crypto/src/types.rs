@@ -2,7 +2,7 @@
 // ROOT v2.0 — crypto/types.rs
 // ═══════════════════════════════════════════════════════════
 
-//use zeroize::Zeroize;
+use zeroize::Zeroize;
 use serde::{Serialize, Deserialize};
 
 pub type Salt = [u8; 16];
