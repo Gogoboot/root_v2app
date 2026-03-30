@@ -6,7 +6,7 @@
 use futures::StreamExt;
 use libp2p::{SwarmBuilder, gossipsub, mdns, noise, swarm::SwarmEvent, tcp, yamux};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
 use super::behaviour::{ROOT_TOPIC, RootBehaviour, RootBehaviourEvent, build_gossipsub};
 
@@ -24,12 +24,14 @@ pub struct P2pMessage {
 /// Запустить P2P узел с каналами
 ///
 /// Принимает байты приватного ключа — PeerID стабилен между перезапусками
+/// Принимает shutdown_rx — oneshot канал для остановки узла
 ///
 /// Возвращает:
 ///   sender   — канал для отправки текста в сеть (Flutter → P2P)
 ///   receiver — канал для получения входящих сообщений (P2P → Flutter)
 pub async fn start_node_channels(
     key_bytes: [u8; 32],
+    shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<(mpsc::Sender<String>, mpsc::Receiver<P2pMessage>), Box<dyn std::error::Error>> {
     let (tx_out, mut rx_out) = mpsc::channel::<String>(100);
     let (tx_in, rx_in) = mpsc::channel::<P2pMessage>(100);
@@ -72,8 +74,17 @@ pub async fn start_node_channels(
 
         println!("  🚀 P2P узел запущен | PeerID: {}", local_peer);
 
+        // shutdown_rx оборачиваем в fuse чтобы select! работал корректно
+        let mut shutdown = shutdown_rx;
+
         loop {
             tokio::select! {
+                // Сигнал остановки — от panic_button() или выхода из приложения
+                _ = &mut shutdown => {
+                    println!("  🛑 P2P узел остановлен");
+                    break;
+                }
+
                 // Исходящее сообщение от Flutter
                 Some(text) = rx_out.recv() => {
                     match swarm.behaviour_mut().gossipsub
@@ -89,7 +100,7 @@ pub async fn start_node_channels(
                         SwarmEvent::Behaviour(RootBehaviourEvent::Gossipsub(
                             gossipsub::Event::Message { propagation_source, message, .. }
                         )) => {
-                            let content   = String::from_utf8_lossy(&message.data).to_string();
+                            let content = String::from_utf8_lossy(&message.data).to_string();
                             let timestamp = SystemTime::now()
                                 .duration_since(UNIX_EPOCH)
                                 .unwrap()

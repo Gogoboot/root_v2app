@@ -46,6 +46,14 @@ pub fn panic_button() -> Result<(), ApiError> {
     let mut state = APP_STATE.lock().unwrap();
     state.panic_activated = true;
 
+    // Останавливаем P2P узел через oneshot канал
+    if let Some(shutdown) = state.p2p_shutdown.take() {
+        let _ = shutdown.send(());
+        println!("  🛑 P2P сигнал остановки отправлен");
+    }
+
+    state.p2p_sender = None;
+
     if let Some(db) = state.database.as_mut() {
         db.panic_destroy();
     }

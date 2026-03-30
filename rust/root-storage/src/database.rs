@@ -373,7 +373,7 @@ impl Database {
 
     pub fn panic_destroy(&mut self) -> StorageError {
         self.panicked = true;
-        PanicButton::activate(&mut self.key, &mut self.conn)
+    PanicButton::activate(&mut self.key, &mut self.conn, &self.db_path)
     }
 
     pub fn print_stats(&self) {

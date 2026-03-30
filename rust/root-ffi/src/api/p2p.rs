@@ -20,11 +20,17 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| ApiError::StorageError(e.to_string()))?;
 
+    // Создаём oneshot пару — sender храним в AppState, receiver уходит в P2P
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
     let (tx_out, mut rx_in) = rt
-        .block_on(start_node_channels(key_bytes))
+        .block_on(start_node_channels(key_bytes, shutdown_rx))
         .map_err(|e| ApiError::StorageError(e.to_string()))?;
 
-    APP_STATE.lock().unwrap().p2p_sender = Some(tx_out);
+    let mut state = APP_STATE.lock().unwrap();
+    state.p2p_sender   = Some(tx_out);
+    state.p2p_shutdown = Some(shutdown_tx);
+
 
     // Фоновый поток — слушает входящие P2P сообщения
     std::thread::spawn(move || {

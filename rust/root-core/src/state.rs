@@ -22,6 +22,7 @@ pub struct AppState {
     pub ledger:          Option<Ledger>,
     pub panic_activated: bool,
     pub p2p_sender:      Option<tokio::sync::mpsc::Sender<String>>,
+    pub p2p_shutdown: Option<tokio::sync::oneshot::Sender<()>>,
     pub peer_count:      u32,
     pub incoming_queue:  Vec<IncomingMessage>,
 }
@@ -34,6 +35,7 @@ impl AppState {
             ledger:          None,
             panic_activated: false,
             p2p_sender:      None,
+            p2p_shutdown: None,
             peer_count:      0,
             incoming_queue:  Vec::new(),
         }
