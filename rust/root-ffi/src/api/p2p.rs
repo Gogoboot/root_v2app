@@ -32,7 +32,7 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
     // 4. Запускаем P2P асинхронно — БЕЗ block_on и БЕЗ нового Runtime!
     handle.spawn(async move {
         match root_network::channels::start_node_channels(key_bytes, shutdown_rx).await {
-            Ok((tx_out, mut rx_in)) => {
+            Ok((tx_out, mut rx_in, mut rx_peer_count)) => {
                 // 5. Сохраняем sender в AppState
                 {
                     let mut state = APP_STATE.lock().unwrap();
@@ -42,7 +42,14 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
 
                 info!("✅ P2P узел запущен");
 
-                // 6. Слушаем входящие сообщения в том же Runtime
+                // 6. Обновляем peer_count при изменениях
+                tokio::spawn(async move {
+                    while let Some(count) = rx_peer_count.recv().await {
+                        APP_STATE.lock().unwrap().peer_count = count;
+                    }
+                });
+
+                // 7. Слушаем входящие сообщения в том же Runtime
                 while let Some(msg) = rx_in.recv().await {
                     info!("📨 ВХОДЯЩЕЕ: от={} текст={}", msg.from_peer, msg.content);
                     
