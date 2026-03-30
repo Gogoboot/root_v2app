@@ -30,8 +30,9 @@ pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiErr
     if let Ok(Some((_, mnemonic))) = db.load_identity() {
         use bip39::Mnemonic;
         if let Ok(parsed) = mnemonic.parse::<Mnemonic>() {
-            let identity = Identity::from_mnemonic(&parsed);
-            state.identity = Some(identity);
+            if let Ok(identity) = Identity::from_mnemonic(&parsed) {
+                state.identity = Some(identity);
+            }
             println!("  ✅ Identity загружена из БД");
         }
     }

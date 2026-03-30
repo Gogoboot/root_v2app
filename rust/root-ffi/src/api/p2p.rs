@@ -11,10 +11,15 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
     use crate::transport::start_node_channels;
 
     // Берём ключ до создания runtime — освобождаем Mutex
-    let key_bytes = {
+    // SecretSeed автоматически обнулится при выходе из блока
+    let key_bytes: [u8; 32] = {
         let state = APP_STATE.lock().unwrap();
         let identity = state.identity.as_ref().ok_or(ApiError::IdentityNotInitialized)?;
-        identity.signing_key_bytes()
+        let seed = identity.signing_key_bytes();
+        // Копируем первые 32 байта — SecretSeed обнулится здесь автоматически
+        let mut bytes = [0u8; 32];
+        bytes.copy_from_slice(&seed.0[..32]);
+        bytes
     };
 
     let rt = tokio::runtime::Runtime::new()

@@ -9,7 +9,8 @@ use super::state::APP_STATE;
 use super::types::{ApiError, IdentityInfo};
 
 pub fn generate_identity() -> Result<IdentityInfo, ApiError> {
-    let (identity, mnemonic) = Identity::generate();
+    let (identity, mnemonic) = Identity::generate()
+        .map_err(|e| ApiError::IdentityError(e.to_string()))?;
     let pubkey_hex = hex::encode(identity.verifying_key.as_bytes());
     let mnemonic_str = mnemonic.to_string();
 
@@ -41,7 +42,8 @@ pub fn restore_identity(mnemonic: String) -> Result<IdentityInfo, ApiError> {
         .parse::<Mnemonic>()
         .map_err(|e| ApiError::IdentityError(e.to_string()))?;
 
-    let identity = Identity::from_mnemonic(&parsed);
+    let identity = Identity::from_mnemonic(&parsed)
+        .map_err(|e| ApiError::IdentityError(e.to_string()))?;
     let pubkey_hex = hex::encode(identity.verifying_key.as_bytes());
 
     let info = IdentityInfo {
