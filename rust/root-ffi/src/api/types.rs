@@ -4,8 +4,6 @@
 // ============================================================
 
 use thiserror::Error;
-use zeroize::Zeroizing;
-
 
 #[derive(Error, Debug)]
 pub enum ApiError {
@@ -36,18 +34,32 @@ pub enum ApiError {
 
 /// Информация об идентичности — передаётся в Flutter
 /// Информация об идентичности — передаётся в Flutter
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct IdentityInfo {
     /// Публичный ключ в hex (64 символа)
     pub public_key: String,
     /// 24 слова мнемоники — защищена Zeroizing (обнуляется при drop)
-    pub mnemonic: Option<Zeroizing<String>>,
+    #[serde(serialize_with = "serialize_zeroizing_option")]
+    pub mnemonic: Option<zeroize::Zeroizing<String>>,
     /// Сеть: "root-mainnet-v2"
     pub network: String,
 }
 
+fn serialize_zeroizing_option<S>(
+    value: &Option<zeroize::Zeroizing<String>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match value {
+        Some(s) => serializer.serialize_some(s.as_str()),
+        None => serializer.serialize_none(),
+    }
+}
+
 /// Баланс пользователя
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct BalanceInfo {
     pub public_key: String,
     pub balance_sap: f64,
@@ -60,7 +72,7 @@ pub struct BalanceInfo {
 }
 
 /// Сообщение для Flutter UI
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct MessageInfo {
     pub id: u64,
     pub from_key: String,
@@ -73,7 +85,7 @@ pub struct MessageInfo {
 }
 
 /// Статус узла для экрана настроек
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct NodeStatus {
     pub public_key: String,
     pub is_active: bool,
@@ -88,7 +100,7 @@ pub struct NodeStatus {
 }
 
 /// Информация о vesting для экрана кошелька
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct VestingInfo {
     pub total_sap: f64,
     pub available_sap: f64,
@@ -99,7 +111,7 @@ pub struct VestingInfo {
 }
 
 /// Результат транзакции
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct TxResult {
     pub tx_id: String,
     pub amount_sap: f64,
@@ -110,7 +122,7 @@ pub struct TxResult {
 }
 
 /// Предупреждение для P2P обмена
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct P2pWarning {
     pub show_warning: bool,
     pub safe_methods: Vec<String>,

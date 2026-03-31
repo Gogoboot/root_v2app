@@ -4,6 +4,7 @@
 // ============================================================
 
 use root_identity::Identity;
+use root_network::P2pOutMessage;
 use root_storage::Database;
 use root_economy::Ledger;
 
@@ -21,7 +22,7 @@ pub struct AppState {
     pub database:        Option<Database>,
     pub ledger:          Option<Ledger>,
     pub panic_activated: bool,
-    pub p2p_sender:      Option<tokio::sync::mpsc::Sender<String>>,
+    pub p2p_sender:      Option<tokio::sync::mpsc::Sender<P2pOutMessage>>,
     pub p2p_shutdown: Option<tokio::sync::oneshot::Sender<()>>,
     pub peer_count:      u32,
     pub incoming_queue:  Vec<IncomingMessage>,

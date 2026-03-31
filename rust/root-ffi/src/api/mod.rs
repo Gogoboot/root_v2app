@@ -66,9 +66,11 @@ impl RootApi {
     }
 
     // ── Messaging ────────────────────────────────────────────
+    #[flutter_rust_bridge::frb(sync)]
     pub fn send_message(to_key: String, content: String) -> Result<u64, ApiError> {
-        messaging::send_message(to_key, content)
+        messaging::send_message(to_key, content)  // ← 2 аргумента
     }
+    
     pub fn get_messages() -> Result<Vec<MessageInfo>, ApiError> {
         messaging::get_messages()
     }
@@ -119,10 +121,13 @@ impl RootApi {
     // ── P2P ──────────────────────────────────────────────────
     pub fn start_p2p_node() -> Result<String, ApiError> {
         p2p::start_p2p_node()
+        }
+
+    #[flutter_rust_bridge::frb(sync)]
+    pub fn send_p2p_message(recipient_pubkey: String, content: String) -> Result<(), ApiError> {
+        p2p::send_p2p_message(recipient_pubkey, content)
     }
-    pub fn send_p2p_message(content: String) -> Result<(), ApiError> {
-        p2p::send_p2p_message(content)
-    }
+
     pub fn is_p2p_running() -> bool {
         p2p::is_p2p_running()
     }

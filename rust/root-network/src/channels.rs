@@ -18,6 +18,15 @@ pub struct P2pMessage {
     pub timestamp: u64,
 }
 
+/// Исходящее P2P сообщение с указанием топика
+#[derive(Debug, Clone)]
+pub struct P2pOutMessage {
+    /// Имя топика — приватный хеш или общий ROOT_TOPIC
+    pub topic:   String,
+    /// Содержимое сообщения
+    pub content: String,
+}
+
 /// Запустить P2P узел с каналами
 ///
 /// Возвращает три канала:
@@ -28,10 +37,10 @@ pub async fn start_node_channels(
     key_bytes: [u8; 32],
     shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<
-    (mpsc::Sender<String>, mpsc::Receiver<P2pMessage>, mpsc::Receiver<u32>),
+    (mpsc::Sender<P2pOutMessage>, mpsc::Receiver<P2pMessage>, mpsc::Receiver<u32>),
     Box<dyn std::error::Error + Send + Sync>,
 > {
-    let (tx_out, mut rx_out)         = mpsc::channel::<String>(100);
+    let (tx_out, mut rx_out) = mpsc::channel::<P2pOutMessage>(100);
     let (tx_in, rx_in)               = mpsc::channel::<P2pMessage>(100);
     // Новый канал — отправляет u32 (новое значение счётчика) при каждом изменении
     let (tx_peers, rx_peer_count)    = mpsc::channel::<u32>(32);
@@ -79,12 +88,15 @@ pub async fn start_node_channels(
                     break;
                 }
 
-                Some(text) = rx_out.recv() => {
-                    match swarm.behaviour_mut().gossipsub.publish(topic.clone(), text.as_bytes()) {
-                        Ok(_)  => println!("  📤 P2P отправлено: {}", &text[..text.len().min(50)]),
-                        Err(e) => println!("  ❌ Ошибка отправки: {}", e),
+                    Some(msg) = rx_out.recv() => {
+                        let topic = gossipsub::IdentTopic::new(&msg.topic);
+                        // Подписываемся на топик если ещё не подписаны
+                        let _ = swarm.behaviour_mut().gossipsub.subscribe(&topic);
+                        match swarm.behaviour_mut().gossipsub.publish(topic, msg.content.as_bytes()) {
+                            Ok(_)  => println!("  📤 P2P отправлено в топик {}: {}", &msg.topic[..8], &msg.content[..msg.content.len().min(50)]),
+                            Err(e) => println!("  ❌ Ошибка отправки: {}", e),
+                        }
                     }
-                }
 
                 event = swarm.select_next_some() => {
                     match event {

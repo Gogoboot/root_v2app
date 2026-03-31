@@ -76,4 +76,10 @@ impl Identity {
         bytes[..32].copy_from_slice(&self.signing_key.to_bytes());
         SecretSeed(bytes)
     }
+
+    /// Возвращает публичный ключ в hex-формате (64 символа)
+    /// Используется для вычисления приватных топиков (задача S2-T6)
+    pub fn public_key_hex(&self) -> String {
+        hex::encode(self.verifying_key.to_bytes())
+    }
 }

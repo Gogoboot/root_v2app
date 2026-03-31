@@ -67,5 +67,21 @@ pub fn verify_message_sender(
     }
 }
 
+/// Генерировать имя приватного топика для пары пользователей.
+/// Топик одинаковый с обеих сторон — ключи сортируются перед хешированием.
+///
+/// Пример: hash("alice_pubkey:bob_pubkey") → "a3f9c2b1e8d4..."
+pub fn private_topic(pubkey_a: &str, pubkey_b: &str) -> String {
+    let mut keys = [pubkey_a, pubkey_b];
+    keys.sort(); // hash(A,B) == hash(B,A)
+
+    let mut hasher = Sha256::new();
+    hasher.update(keys[0].as_bytes());
+    hasher.update(b":");
+    hasher.update(keys[1].as_bytes());
+    let hash = hasher.finalize();
+    hex::encode(&hash[..16])
+}
+
 /// Название топика сети ROOT
 pub const ROOT_TOPIC: &str = "root-network-v2";

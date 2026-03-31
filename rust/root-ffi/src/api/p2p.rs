@@ -9,6 +9,9 @@ use crate::api::types::{ApiError, MessageInfo};
 use root_core::state::IncomingMessage;  // ✅ Правильный тип из root_core
 use log::{info, error};
 use tokio::sync::oneshot;
+use root_network::{P2pOutMessage, generate_topic_id};  // ← Оба импорта!
+
+
 
 pub fn start_p2p_node() -> Result<String, ApiError> {
     // 1. Получаем ключ из AppState (SecretSeed автоматически затирается)
@@ -73,17 +76,36 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
     Ok("p2p-node-started".to_string())
 }
 
-pub fn send_p2p_message(content: String) -> Result<(), ApiError> {
+// ✅ Исправленная функция:
+pub fn send_p2p_message(recipient_pubkey: String, content: String) -> Result<(), ApiError> {
     let state = APP_STATE.lock()
         .map_err(|_| ApiError::StorageError("AppState lock poisoned".into()))?;
-    let sender = state.p2p_sender.as_ref()
-        .ok_or_else(|| ApiError::StorageError("P2P узел не запущен. Вызови start_p2p_node()".into()))?;
+
+    // 1. Получаем свою идентичность для вычисления топика
+    let identity = state.identity.as_ref()
+        .ok_or_else(|| ApiError::StorageError("Identity not initialized".into()))?;
     
+    // 2. Получаем свой публичный ключ (метод, который мы добавили в keys.rs)
+    let own_pubkey = identity.public_key_hex();
+    
+    // 3. Вычисляем приватный топик: hash(sort(own_pubkey, recipient_pubkey))
+    let topic = generate_topic_id(&own_pubkey, &recipient_pubkey);
+
+    let sender = state.p2p_sender.as_ref()
+        .ok_or_else(|| ApiError::StorageError("P2P узел не запущен".into()))?;
+    
+    // 4. Конструируем P2pOutMessage с правильными полями
+    let message = P2pOutMessage {
+        topic,      // ← ✅ Приватный топик (хеш пары ключей)
+        content,    // ← ✅ Текст сообщения
+    };
+
     sender
-        .try_send(content)
+        .try_send(message)
         .map_err(|e| ApiError::StorageError(format!("{}", e)))?;
     Ok(())
 }
+
 
 pub fn is_p2p_running() -> bool {
     APP_STATE.lock().unwrap().p2p_sender.is_some()

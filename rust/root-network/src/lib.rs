@@ -7,6 +7,8 @@
 pub mod behaviour;
 pub mod channels;
 pub mod node;
+pub mod topic;
 
-pub use behaviour::{RootBehaviour, RootBehaviourEvent};
-pub use channels::{P2pMessage, start_node_channels};
+pub use behaviour::{RootBehaviour, RootBehaviourEvent, build_gossipsub, private_topic, verify_message_sender};
+pub use channels::{P2pMessage, P2pOutMessage, start_node_channels};
+pub use topic::generate_topic_id;

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROOT v2.0 — Desktop</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #00d9ff; }
+        .status { padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .status.active { background: #0f5132; }
+        .status.inactive { background: #842029; }
+        button {
+            background: #0d6efd;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0b5ed7; }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background: #16213e;
+            color: #eee;
+        }
+        #log {
+            background: #0f0f1a;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry { margin: 3px 0; }
+        .log-info { color: #00d9ff; }
+        .log-error { color: #ff6b6b; }
+        .log-success { color: #51cf66; }
+    </style>
+</head>
+<body>
+    <h1>🔐 ROOT v2.0 — Desktop MVP</h1>
+    
+    <div id="status" class="status inactive">
+        P2P Статус: <strong id="status-text">Остановлен</strong>
+    </div>
+    
+    <div>
+        <button onclick="startP2P()">▶️ Запустить P2P</button>
+        <button onclick="stopP2P()">⏹️ Остановить P2P</button>
+        <button onclick="checkStatus()">🔄 Обновить статус</button>
+    </div>
+    
+    <hr style="border-color: #444; margin: 20px 0;">
+    
+    <h2>✉️ Отправить сообщение</h2>
+    <input type="text" id="toKey" placeholder="Публичный ключ получателя (hex)">
+    <textarea id="messageContent" rows="3" placeholder="Текст сообщения"></textarea>
+    <button onclick="sendMessage()">📤 Отправить</button>
+    
+    <hr style="border-color: #444; margin: 20px 0;">
+    
+    <h2>📥 Входящие сообщения</h2>
+    <button onclick="loadMessages()">🔄 Обновить</button>
+    <div id="messages" style="margin-top: 10px;"></div>
+    
+    <hr style="border-color: #444; margin: 20px 0;">
+    
+    <h2>📋 Лог событий</h2>
+    <div id="log"></div>
+
+    <script>
+        const { invoke } = window.__TAURI__.core;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function checkStatus() {
+            try {
+                const isRunning = await invoke('get_p2p_status');
+                const statusDiv = document.getElementById('status');
+                const statusText = document.getElementById('status-text');
+                
+                if (isRunning) {
+                    statusDiv.className = 'status active';
+                    statusText.textContent = 'Активен';
+                    log('P2P узел активен', 'success');
+                } else {
+                    statusDiv.className = 'status inactive';
+                    statusText.textContent = 'Остановлен';
+                    log('P2P узел остановлен', 'info');
+                }
+            } catch (e) {
+                log(`Ошибка: ${e}`, 'error');
+            }
+        }
+
+        async function startP2P() {
+            try {
+                const result = await invoke('start_p2p_node');
+                log(`P2P запущен: ${result}`, 'success');
+                checkStatus();
+            } catch (e) {
+                log(`Ошибка запуска: ${e}`, 'error');
+            }
+        }
+
+        async function stopP2P() {
+            try {
+                await invoke('stop_p2p_node');
+                log('P2P остановлен', 'info');
+                checkStatus();
+            } catch (e) {
+                log(`Ошибка остановки: ${e}`, 'error');
+            }
+        }
+
+        async function sendMessage() {
+            const toKey = document.getElementById('toKey').value;
+            const content = document.getElementById('messageContent').value;
+            
+            if (!toKey || !content) {
+                log('Заполните ключ получателя и текст сообщения', 'error');
+                return;
+            }
+            
+            try {
+                const id = await invoke('send_message', { toKey, content });
+                log(`Сообщение #${id} отправлено`, 'success');
+                document.getElementById('messageContent').value = '';
+            } catch (e) {
+                log(`Ошибка отправки: ${e}`, 'error');
+            }
+        }
+
+        async function loadMessages() {
+            try {
+                const messages = await invoke('get_incoming_messages');
+                const msgDiv = document.getElementById('messages');
+                msgDiv.innerHTML = '';
+                
+                if (messages.length === 0) {
+                    msgDiv.innerHTML = '<p>Нет новых сообщений</p>';
+                    return;
+                }
+                
+                messages.forEach(msg => {
+                    const entry = document.createElement('div');
+                    entry.style.background = '#16213e';
+                    entry.style.padding = '10px';
+                    entry.style.margin = '5px 0';
+                    entry.style.borderRadius = '5px';
+                    entry.innerHTML = `
+                        <strong>От:</strong> ${msg.from_key}<br>
+                        <strong>Текст:</strong> ${msg.content}<br>
+                        <small>${new Date(msg.timestamp * 1000).toLocaleString()}</small>
+                    `;
+                    msgDiv.appendChild(entry);
+                });
+                
+                log(`Загружено ${messages.length} сообщений`, 'success');
+            } catch (e) {
+                log(`Ошибка загрузки: ${e}`, 'error');
+            }
+        }
+
+        // Автообновление статуса при загрузке
+        window.addEventListener('DOMContentLoaded', () => {
+            log('ROOT Desktop готов', 'success');
+            checkStatus();
+        });
+    </script>
+</body>
+</html>
