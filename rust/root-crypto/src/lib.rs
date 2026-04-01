@@ -8,6 +8,8 @@ pub mod argon;
 pub mod asymmetric;
 pub mod symmetric;
 pub mod types;
+pub mod constants;
+
 
 pub use argon::{derive_key, wipe_password};
 pub use asymmetric::{
