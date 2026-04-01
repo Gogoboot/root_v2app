@@ -187,7 +187,7 @@ impl Database {
             .map_err(StorageError::Database)?;
 
         let messages = stmt
-            .query_map(params![public_key], |row| {
+            .query_map(params![public_key, &(limit as i64), &(offset as i64)], |row| {
                 let id: i64 = row.get(0)?;
                 let from_key: String = row.get(1)?;
                 let to_key: String = row.get(2)?;
