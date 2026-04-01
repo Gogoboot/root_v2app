@@ -107,14 +107,38 @@ impl Database {
         // Примечание: Сама БД теперь содержит только зашифрованные данные, SQLCipher не нужен.
         let conn = Connection::open(path).map_err(StorageError::Database)?;
 
+        // 5. Загружаем Merkle Tree из существующих сообщений
+        let mut merkle = MerkleTree::new();
+        {
+            let mut stmt = conn
+                .prepare("SELECT merkle_hash FROM messages ORDER BY id ASC")
+                .map_err(StorageError::Database)?;
+            let hashes = stmt
+                .query_map([], |row| row.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(StorageError::Database)?;
+
+            for hash_hex in hashes {
+                if let Ok(bytes) = hex::decode(&hash_hex) {
+                    if bytes.len() == 32 {
+                        let mut hash = [0u8; 32];
+                        hash.copy_from_slice(&bytes);
+                        merkle.add_leaf(hash);
+                    }
+                }
+            }
+            println!("  🌲 Merkle Tree загружен: {} листьев", merkle.len());
+        }
+
         Ok(Database {
             conn: Some(conn),
             key,
-            salt_manager, // Сохраняем менеджер в структуре
-            merkle: MerkleTree::new(),
+            salt_manager,
+            merkle,
             db_path: path.to_string(),
             panicked: false,
         })
+        
     }
 
     fn conn(&self) -> Result<&Connection, StorageError> {
