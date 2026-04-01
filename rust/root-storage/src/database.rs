@@ -261,21 +261,28 @@ impl Database {
         Ok(id)
     }
 
-    pub fn get_messages(&self, public_key: &str) -> Result<Vec<Message>, StorageError> {
+    pub fn get_messages(
+        &self,
+        public_key: &str,
+        page: usize,
+        page_size: usize,
+    ) -> Result<Vec<Message>, StorageError> {
         if self.panicked {
             return Err(StorageError::PanicButtonActivated);
         }
-
         let conn = self.conn()?;
+        let offset = (page * page_size) as i64;
         let mut stmt = conn
             .prepare(
                 "SELECT id, from_key, to_key, content, timestamp, is_read
-             FROM messages WHERE to_key = ?1 OR from_key = ?1 ORDER BY timestamp ASC",
+             FROM messages WHERE to_key = ?1 OR from_key = ?1
+             ORDER BY timestamp DESC
+             LIMIT ?2 OFFSET ?3",
             )
             .map_err(StorageError::Database)?;
 
         let messages = stmt
-            .query_map(params![public_key], |row| {
+            .query_map(params![public_key, page_size as i64, offset], |row| {
                 let id: i64 = row.get(0)?;
                 let from_key: String = row.get(1)?;
                 let to_key: String = row.get(2)?;

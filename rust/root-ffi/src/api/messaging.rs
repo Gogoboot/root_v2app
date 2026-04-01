@@ -63,7 +63,7 @@ pub fn get_messages() -> Result<Vec<MessageInfo>, ApiError> {
     let state = APP_STATE.lock().unwrap();
     let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     let messages = db
-        .get_messages(&public_key)
+        .get_messages(&public_key, 0, 50)
         .map_err(|e: StorageError| ApiError::StorageError(e.to_string()))?;
     let contacts = db.get_contacts().unwrap_or_default();
     let infos = messages
