@@ -3,29 +3,39 @@
 // ═══════════════════════════════════════════════════════════
 
 use argon2::{Argon2, Algorithm, Version, Params};
-use zeroize::{Zeroize, Zeroizing};  // ✅ Добавлен Zeroize
+use zeroize::{Zeroize, Zeroizing};
 use crate::types::{CryptoError, SecureKey};
 
+// ✅ Импорт констант (после настройки constants.rs)
+use crate::constants::ARGON2_PEPPER;
+
 pub fn derive_key(password: &Zeroizing<String>, salt: &[u8]) -> Result<SecureKey, CryptoError> {
-    // ✅ Параметры Argon2id
+    
+    // ✅ Шаг 1: Комбинируем соль + pepper
+    let mut combined = Vec::with_capacity(salt.len() + ARGON2_PEPPER.len());
+    combined.extend_from_slice(salt);
+    combined.extend_from_slice(ARGON2_PEPPER);
+ 
+    // ✅ Шаг 2: Параметры Argon2id
     let argon2 = Argon2::new(
         Algorithm::Argon2id,
         Version::V0x13,
-        Params::new(19456, 2, 1, Some(32))  // 19MB, 2 итерации, 1 поток, 32 байта вывод
+        Params::new(19456, 2, 1, Some(32))
             .map_err(|_| CryptoError::DerivationFailed)?,
     );
     
-    // ✅ Используем hash_password_into с raw солью (не SaltString!)
+    // ✅ Шаг 3: Используем combined (соль + pepper), а не только salt!
     let mut key_bytes = [0u8; 32];
-    argon2.hash_password_into(password.as_bytes(), salt, &mut key_bytes)
+    argon2.hash_password_into(password.as_bytes(), &combined, &mut key_bytes)
         .map_err(|_| CryptoError::DerivationFailed)?;
     
-    // ✅ Копируем в SecureKey
+    // ✅ Шаг 4: Копируем в SecureKey
     let mut key = SecureKey::default();
     key[..32].copy_from_slice(&key_bytes);
     
-    // ✅ Затирание временного буфера
+    // ✅ Шаг 5: Затирание временных буферов
     key_bytes.zeroize();
+    combined.zeroize();  // ← ✅ Важно! Pepper тоже затереть
     
     Ok(key)
 }
@@ -33,6 +43,7 @@ pub fn derive_key(password: &Zeroizing<String>, salt: &[u8]) -> Result<SecureKey
 pub fn wipe_password<T: Zeroize>(secret: &mut T) {
     secret.zeroize();
 }
+
 
 #[cfg(test)]
 mod tests {

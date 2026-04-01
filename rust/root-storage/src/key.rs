@@ -53,11 +53,11 @@ impl SaltManager {
     /// Возвращает ссылку на массив байт [u8; 32]
     pub fn get_salt(&self) -> Result<&[u8; SALT_SIZE], KeyError> {
         match &self.salt {
-            Some(s) => Ok(&**s),  // ✅ Явно и понятно
+            Some(s) => Ok(&**s), // ✅ Явно и понятно
             None => Err(KeyError::NotInitialized),
         }
     }
-    
+
     /// Основная логика: Keychain -> Миграция с файла -> Генерация новой
     fn load_or_create_salt(
         &self,
@@ -197,15 +197,24 @@ impl SaltManager {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::*;  // ✅ Используется
 
     #[test]
-    fn test_salt_manager_structure() {
-        // Простой тест на компиляцию структуры
-        // Реальное тестирование требует доступа к OS Keychain
-        println!("SaltManager structure OK.");
+    fn test_salt_manager_creation() {
+        let temp_dir = std::env::temp_dir().join("root_test_salt");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let manager = SaltManager::new(&temp_dir);
+        assert!(manager.is_ok());
+
+        let manager = manager.unwrap();
+        let salt = manager.get_salt().unwrap();
+        assert_eq!(salt.len(), SALT_SIZE);
+
+        std::fs::remove_dir_all(&temp_dir).ok();
     }
 }
 
@@ -214,7 +223,6 @@ mod tests {
 mod integration_tests {
     use super::*;
     use std::fs;
-    use std::path::PathBuf;
 
     #[test]
     fn test_salt_manager_creation() {
