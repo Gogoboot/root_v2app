@@ -91,7 +91,7 @@ impl Database {
 
     /// ```
     /// Открывает БД, деривирует ключ через Argon2id используя соль из Keychain (или мигрирует файл).
-    pub fn open(path: &str, password:  &Zeroizing<String>) -> Result<Self, StorageError> {
+    pub fn open(path: &str, password: &Zeroizing<String>) -> Result<Self, StorageError> {
         println!("  🔑 Инициализация SaltManager (Keychain/Migration)...");
 
         // Определяем директорию приложения для SaltManager.
@@ -406,10 +406,16 @@ impl Database {
         if count > 0 {
             println!("  ⚠️  Имя '{}' уже занято", contact.nickname);
         }
+
+        // Шифруем nickname — метаданные не должны быть видны в файле БД
+        let encrypted = encrypt(&self.key, contact.nickname.as_bytes())
+            .map_err(|_| StorageError::EncryptionFailed)?;
+        let nickname_blob = hex::encode(pack_for_storage(&encrypted));
+
         self.conn()?.execute(
-            "INSERT OR REPLACE INTO contacts (public_key, nickname, added_at, reputation) VALUES (?1, ?2, ?3, ?4)",
-            params![contact.public_key, contact.nickname, contact.added_at as i64, contact.reputation as i32],
-        ).map_err(StorageError::Database)?;
+        "INSERT OR REPLACE INTO contacts (public_key, nickname, added_at, reputation) VALUES (?1, ?2, ?3, ?4)",
+        params![contact.public_key, nickname_blob, contact.added_at as i64, contact.reputation as i32],
+    ).map_err(StorageError::Database)?;
         Ok(())
     }
 
@@ -421,18 +427,38 @@ impl Database {
         let mut stmt = conn
             .prepare("SELECT public_key, nickname, added_at, reputation FROM contacts")
             .map_err(StorageError::Database)?;
-        let contacts = stmt
+
+        let rows = stmt
             .query_map([], |row| {
-                Ok(Contact {
-                    public_key: row.get(0)?,
-                    nickname: row.get(1)?,
-                    added_at: row.get::<_, i64>(2)? as u64,
-                    reputation: row.get::<_, i32>(3)? as u8,
-                })
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, i32>(3)?,
+                ))
             })?
-            .collect::<Result<Vec<_>, rusqlite::Error>>()
+            .collect::<Result<Vec<_>, _>>()
             .map_err(StorageError::Database)?;
-        Ok(contacts)
+
+        rows.into_iter()
+            .map(|(public_key, nickname_blob, added_at, reputation)| {
+                // Расшифровываем nickname
+                let blob =
+                    hex::decode(&nickname_blob).map_err(|e| StorageError::Crypto(e.to_string()))?;
+                let encrypted =
+                    unpack_from_storage(&blob).map_err(|e| StorageError::Crypto(e.to_string()))?;
+                let plaintext =
+                    decrypt(&self.key, &encrypted).map_err(|_| StorageError::EncryptionFailed)?;
+                let nickname = String::from_utf8(plaintext)
+                    .map_err(|e| StorageError::Crypto(e.to_string()))?;
+                Ok(Contact {
+                    public_key,
+                    nickname,
+                    added_at: added_at as u64,
+                    reputation: reputation as u8,
+                })
+            })
+            .collect()
     }
 
     pub fn verify_integrity(&self) -> Result<bool, StorageError> {
