@@ -1,9 +1,9 @@
-use std::path::Path;
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use rand::RngCore;
 use std::fs;
 use std::io::Write; // Вынесено наверх
-use zeroize::{Zeroizing, Zeroize};
-use rand::RngCore;
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use std::path::Path;
+use zeroize::{Zeroize, Zeroizing};
 
 // Ошибки модуля ключей
 #[derive(Debug)]
@@ -41,11 +41,11 @@ pub struct SaltManager {
 impl SaltManager {
     pub fn new(app_data_dir: &Path) -> Result<Self, KeyError> {
         let mut manager = Self { salt: None };
-        
+
         // Попытка загрузить или создать соль
         let salt = manager.load_or_create_salt(app_data_dir)?;
         manager.salt = Some(salt);
-        
+
         Ok(manager)
     }
 
@@ -55,17 +55,25 @@ impl SaltManager {
     }
 
     /// Основная логика: Keychain -> Миграция с файла -> Генерация новой
-    fn load_or_create_salt(&self, app_data_dir: &Path) -> Result<Zeroizing<[u8; SALT_SIZE]>, KeyError> {
+    fn load_or_create_salt(
+        &self,
+        app_data_dir: &Path,
+    ) -> Result<Zeroizing<[u8; SALT_SIZE]>, KeyError> {
         // 1. Попытка получить из Keychain
         match self.read_from_keyring() {
             Ok(salt) => {
                 log::info!("Salt loaded successfully from OS Keychain.");
                 return Ok(salt);
-            },
-            Err(KeyError::KeyringError(ref msg)) if msg.contains("not found") || msg.contains("No entry") || msg.contains("NotFound") => {
+            }
+            Err(KeyError::KeyringError(ref msg))
+                if msg.contains("not found")
+                    || msg.contains("No entry")
+                    || msg.contains("NotFound")
+                    || msg.contains("No matching entry") =>
+            {
                 // Не найдено в Keychain, пробуем миграцию
                 log::info!("Salt not found in Keychain, checking for legacy file migration...");
-            },
+            }
             Err(e) => {
                 // Другая ошибка Keychain
                 log::error!("Critical Keychain error: {}", e);
@@ -86,7 +94,7 @@ impl SaltManager {
         rand::thread_rng().fill_bytes(new_salt.as_mut_slice());
 
         self.save_to_keyring(&new_salt)?;
-        
+
         Ok(new_salt)
     }
 
@@ -96,20 +104,24 @@ impl SaltManager {
             .map_err(|e| KeyError::KeyringError(e.to_string()))?;
 
         // ИСПРАВЛЕНО: используем get_password() вместо get_secret()
-        let password_str = entry.get_password()
+        let password_str = entry
+            .get_password()
             .map_err(|e| KeyError::KeyringError(e.to_string()))?;
 
         // Декодируем Base64 обратно в байты
-        let decoded = BASE64.decode(&password_str)
+        let decoded = BASE64
+            .decode(&password_str)
             .map_err(|e| KeyError::KeyringError(format!("Base64 decode failed: {}", e)))?;
 
         if decoded.len() != SALT_SIZE {
-            return Err(KeyError::KeyringError("Invalid salt size in Keychain".to_string()));
+            return Err(KeyError::KeyringError(
+                "Invalid salt size in Keychain".to_string(),
+            ));
         }
 
         let mut salt = Zeroizing::new([0u8; SALT_SIZE]);
         salt.copy_from_slice(&decoded);
-        
+
         Ok(salt)
     }
 
@@ -122,7 +134,8 @@ impl SaltManager {
         let encoded = BASE64.encode(salt);
 
         // ИСПРАВЛЕНО: используем set_password() вместо set_secret()
-        entry.set_password(&encoded)
+        entry
+            .set_password(&encoded)
             .map_err(|e| KeyError::KeyringError(e.to_string()))?;
 
         Ok(())
@@ -131,11 +144,12 @@ impl SaltManager {
     /// Логика миграции: Читает файл -> Пишет в Keychain -> Удаляет файл
     fn migrate_from_file(&self, file_path: &Path) -> Result<Zeroizing<[u8; SALT_SIZE]>, KeyError> {
         // Чтение файла
-        let file_content = fs::read(file_path)
-            .map_err(KeyError::IoError)?;
+        let file_content = fs::read(file_path).map_err(KeyError::IoError)?;
 
         if file_content.len() != SALT_SIZE {
-            return Err(KeyError::MigrationFailed("Invalid salt file size".to_string()));
+            return Err(KeyError::MigrationFailed(
+                "Invalid salt file size".to_string(),
+            ));
         }
 
         let mut salt = Zeroizing::new([0u8; SALT_SIZE]);
@@ -147,9 +161,11 @@ impl SaltManager {
 
         // Безопасное удаление файла
         // 1. Перезаписываем нулями несколько раз
-        let mut file_opts = fs::OpenOptions::new().write(true).open(file_path)
+        let mut file_opts = fs::OpenOptions::new()
+            .write(true)
+            .open(file_path)
             .map_err(KeyError::IoError)?;
-        
+
         let zeros = vec![0u8; SALT_SIZE];
         for _ in 0..3 {
             file_opts.write_all(&zeros).map_err(KeyError::IoError)?;
@@ -158,17 +174,16 @@ impl SaltManager {
         drop(file_opts);
 
         // 2. Удаляем файл
-        fs::remove_file(file_path)
-            .map_err(|e| {
-                log::error!("Failed to delete legacy salt file: {}", e);
-                KeyError::MigrationFailed(format!("Could not delete old file: {}", e))
-            })?;
-        
+        fs::remove_file(file_path).map_err(|e| {
+            log::error!("Failed to delete legacy salt file: {}", e);
+            KeyError::MigrationFailed(format!("Could not delete old file: {}", e))
+        })?;
+
         log::info!("Legacy salt file securely deleted. Migration complete.");
 
         Ok(salt)
     }
-    
+
     // Метод для очистки (используется при Panic Button или выходе)
     pub fn clear_memory(&mut self) {
         if let Some(ref mut s) = self.salt {
@@ -201,15 +216,15 @@ mod integration_tests {
     fn test_salt_manager_creation() {
         let temp_dir = std::env::temp_dir().join("root_test_salt");
         fs::create_dir_all(&temp_dir).unwrap();
-        
+
         let manager = SaltManager::new(&temp_dir);
         assert!(manager.is_ok());
-        
+
         // Проверка получения соли
         let manager = manager.unwrap();
         let salt = manager.get_salt().unwrap();
         assert_eq!(salt.len(), SALT_SIZE);
-        
+
         // Очистка
         drop(manager);
         fs::remove_dir_all(&temp_dir).ok();
@@ -219,18 +234,18 @@ mod integration_tests {
     fn test_salt_uniqueness() {
         let temp_dir = std::env::temp_dir().join("root_test_salt_2");
         fs::create_dir_all(&temp_dir).unwrap();
-        
+
         let manager1 = SaltManager::new(&temp_dir).unwrap();
         let salt1 = *manager1.get_salt().unwrap();
-        
+
         drop(manager1);
-        
+
         // При повторном создании та же соль должна быть восстановлена
         let manager2 = SaltManager::new(&temp_dir).unwrap();
         let salt2 = *manager2.get_salt().unwrap();
-        
+
         assert_eq!(salt1, salt2, "Соль должна сохраняться между запусками");
-        
+
         drop(manager2);
         fs::remove_dir_all(&temp_dir).ok();
     }

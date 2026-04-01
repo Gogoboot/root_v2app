@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ROOT Desktop",
+  "version": "0.1.0",
+  "identifier": "com.root.app",
+ "build": {
+  "frontendDist": "../src",
+  "devUrl": null,
+  "beforeDevCommand": "",
+  "beforeBuildCommand": ""
+},
+"tauri": {
+  "bundle": {
+    "identifier": "com.tauri.root-app-peer2" 
+  },
+  "window": [
+    {
+      "title": "Root App - Peer 2",
+      "width": 800,
+      "height": 600
+    }
+  ]
+}
+}

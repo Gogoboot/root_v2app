@@ -3,12 +3,9 @@
   "productName": "ROOT Desktop",
   "version": "0.1.0",
   "identifier": "com.root.app",
-"build": {
-  "frontendDist": "../src",
-  "devUrl": "http://localhost:1420",
-  "beforeDevCommand": "npx serve ../src -p 1420",
-  "beforeBuildCommand": ""
-},
+  "build": {
+    "frontendDist": "../src"
+  },
   "app": {
     "windows": [
       {
@@ -21,13 +18,14 @@
     ],
     "security": {
       "csp": null
-    }
+    },
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
     "targets": "all",
     "icon": [
-       "icons/icon.ico"
+      "icons/icon.ico"
     ]
   }
 }

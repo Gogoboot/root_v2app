@@ -3,18 +3,13 @@
 // FFI функции: P2P сеть (исправлено: единый Runtime)
 // ============================================================
 
-use crate::runtime::runtime_handle;
 use crate::api::state::APP_STATE;
 use crate::api::types::{ApiError, MessageInfo};
 use root_core::state::IncomingMessage;  // ✅ Правильный тип из root_core
 use log::{info, error};
-use tokio::sync::oneshot;
 use root_network::{P2pOutMessage, generate_topic_id};  // ← Оба импорта!
 
-
-
 pub fn start_p2p_node() -> Result<String, ApiError> {
-    // 1. Получаем ключ из AppState (SecretSeed автоматически затирается)
     let key_bytes: [u8; 32] = {
         let state = APP_STATE.lock()
             .map_err(|_| ApiError::StorageError("AppState lock poisoned".into()))?;
@@ -26,40 +21,33 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
         bytes
     };
 
-    // 2. Создаём канал для остановки
-    let (shutdown_tx, shutdown_rx): (oneshot::Sender<()>, oneshot::Receiver<()>) = oneshot::channel();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
 
-    // 3. Берём Handle единого Runtime
-    let handle = runtime_handle();
+    // Используем существующий Runtime через Handle::current()
+    // вместо создания нового через APP_RUNTIME
+    let handle = tokio::runtime::Handle::try_current()
+        .unwrap_or_else(|_| crate::runtime::APP_RUNTIME.handle().clone());
 
-    // 4. Запускаем P2P асинхронно — БЕЗ block_on и БЕЗ нового Runtime!
     handle.spawn(async move {
         match root_network::channels::start_node_channels(key_bytes, shutdown_rx).await {
             Ok((tx_out, mut rx_in, mut rx_peer_count)) => {
-                // 5. Сохраняем sender в AppState
                 {
                     let mut state = APP_STATE.lock().unwrap();
-                    state.p2p_sender = Some(tx_out);
+                    state.p2p_sender   = Some(tx_out);
                     state.p2p_shutdown = Some(shutdown_tx);
                 }
-
                 info!("✅ P2P узел запущен");
 
-                // 6. Обновляем peer_count при изменениях
                 tokio::spawn(async move {
                     while let Some(count) = rx_peer_count.recv().await {
                         APP_STATE.lock().unwrap().peer_count = count;
                     }
                 });
 
-                // 7. Слушаем входящие сообщения в том же Runtime
                 while let Some(msg) = rx_in.recv().await {
-                    info!("📨 ВХОДЯЩЕЕ: от={} текст={}", msg.from_peer, msg.content);
-                    
-                    // ✅ Используем IncomingMessage из root_core
                     APP_STATE.lock().unwrap().incoming_queue.push(IncomingMessage {
                         from_peer: msg.from_peer,
-                        content: msg.content,
+                        content:   msg.content,
                         timestamp: std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap_or_default()
@@ -67,14 +55,14 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
                     });
                 }
             }
-            Err(e) => {
-                error!("❌ Ошибка запуска P2P: {}", e);
-            }
+            Err(e) => error!("❌ Ошибка запуска P2P: {}", e),
         }
     });
 
     Ok("p2p-node-started".to_string())
 }
+
+
 
 // ✅ Исправленная функция:
 pub fn send_p2p_message(recipient_pubkey: String, content: String) -> Result<(), ApiError> {

@@ -5,7 +5,7 @@
 //use zeroize::Zeroize;
 use serde::{Serialize, Deserialize};
 
-pub type Salt = [u8; 16];
+pub type Salt = [u8; 32];
 pub type CryptoNonce = [u8; 12];
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
