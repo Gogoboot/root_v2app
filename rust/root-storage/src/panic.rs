@@ -23,7 +23,7 @@ impl PanicButton {
         key: &mut SecureKey,
         db: &mut Option<Connection>,
         db_path: &str,
-    ) -> StorageError {
+    ) -> Result<(), StorageError> {  // ✅ Возвращает Result
         // 1. Обнуляем ключ в памяти
         key.zeroize();
 
@@ -43,11 +43,12 @@ impl PanicButton {
                     let _ = file.flush();
                 }
             }
-        }
+        }  // ✅ Закрывающая скобка
 
         // 4. Удаляем файл
         let _ = std::fs::remove_file(db_path);
 
-        StorageError::PanicButtonActivated
+        // ✅ Возвращаем успех
+        Ok(())
     }
 }

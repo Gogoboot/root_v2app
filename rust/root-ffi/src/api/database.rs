@@ -3,12 +3,16 @@
 // FFI функции: открытие БД, Panic Button
 // ============================================================
 
-use root_identity::Identity;
-use root_storage::Database;
 use super::state::APP_STATE;
 use super::types::ApiError;
+use root_identity::Identity;
+use root_storage::Database;
+use zeroize::Zeroizing;
 
 pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiError> {
+    // ✅ Обернуть пароль в Zeroizing
+    let password = Zeroizing::new(password);
+
     let current_dir = std::env::current_dir().unwrap_or_default();
     println!("  📁 Рабочая папка: {:?}", current_dir);
 
@@ -19,7 +23,8 @@ pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiErr
         }
     }
 
-    let db = Database::open(&db_path, &password)
+    // ✅ Добавить mut
+    let mut db = Database::open(&db_path, &password)
         .map_err(|e: root_storage::StorageError| ApiError::StorageError(e.to_string()))?;
 
     db.initialize()
@@ -27,14 +32,16 @@ pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiErr
 
     let mut state = APP_STATE.lock().unwrap();
 
-    if let Ok(Some((_, mnemonic))) = db.load_identity() {
+    // ✅ Мнемоника в Zeroizing
+    if let Ok(Some((_, mnemonic_str))) = db.load_identity() {
         use bip39::Mnemonic;
+        let mnemonic = Zeroizing::new(mnemonic_str);
         if let Ok(parsed) = mnemonic.parse::<Mnemonic>() {
             if let Ok(identity) = Identity::from_mnemonic(&parsed) {
                 state.identity = Some(identity);
             }
-            println!("  ✅ Identity загружена из БД");
         }
+        println!("  ✅ Identity загружена из БД");
     }
 
     state.database = Some(db);
@@ -47,7 +54,6 @@ pub fn panic_button() -> Result<(), ApiError> {
     let mut state = APP_STATE.lock().unwrap();
     state.panic_activated = true;
 
-    // Останавливаем P2P узел через oneshot канал
     if let Some(shutdown) = state.p2p_shutdown.take() {
         let _ = shutdown.send(());
         println!("  🛑 P2P сигнал остановки отправлен");
@@ -55,12 +61,15 @@ pub fn panic_button() -> Result<(), ApiError> {
 
     state.p2p_sender = None;
 
+    // ✅ Обработать результат panic_destroy()
+    // В root-ffi/src/api/database.rs:
     if let Some(db) = state.database.as_mut() {
-        db.panic_destroy();
+        db.panic_destroy()
+            .map_err(|e: root_storage::StorageError| ApiError::StorageError(e.to_string()))?;
     }
 
     state.identity = None;
-    state.ledger   = None;
+    state.ledger = None;
     state.database = None;
 
     println!("  ✅ Все данные уничтожены. Перезапусти приложение.");

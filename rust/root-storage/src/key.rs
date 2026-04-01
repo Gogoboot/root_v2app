@@ -50,10 +50,14 @@ impl SaltManager {
     }
 
     /// Возвращает ссылку на массив байт [u8; 32]
+    /// Возвращает ссылку на массив байт [u8; 32]
     pub fn get_salt(&self) -> Result<&[u8; SALT_SIZE], KeyError> {
-        self.salt.as_deref().ok_or(KeyError::NotInitialized)
+        match &self.salt {
+            Some(s) => Ok(&**s),  // ✅ Явно и понятно
+            None => Err(KeyError::NotInitialized),
+        }
     }
-
+    
     /// Основная логика: Keychain -> Миграция с файла -> Генерация новой
     fn load_or_create_salt(
         &self,

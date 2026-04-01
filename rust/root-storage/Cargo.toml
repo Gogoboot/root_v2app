@@ -16,5 +16,6 @@ dirs        = "5.0"
 base64      = "0.21"
 keyring     = "2.0"
 rand = { version = "0.8", features = ["getrandom"] }
-log  = "0.4"
+log = { workspace = true }
+env_logger = { workspace = true }
 hex  = "0.4"

@@ -4,10 +4,10 @@
 // ============================================================
 
 use sha2::{Digest, Sha256};
-
+use zeroize::Zeroize;  
 pub struct MerkleTree {
     /// Листья дерева — хеши сообщений
-    pub leaves: Vec<[u8; 32]>,
+    leaves: Vec<[u8; 32]>,  // ✅ Без pub
 }
 
 impl Default for MerkleTree {
@@ -24,6 +24,16 @@ impl MerkleTree {
     /// Добавить хеш нового сообщения
     pub fn add_leaf(&mut self, hash: [u8; 32]) {
         self.leaves.push(hash);
+    }
+
+    /// Получить хеш сообщения по индексу
+    pub fn get_leaf(&self, index: usize) -> Option<[u8; 32]> {
+        self.leaves.get(index).copied()
+    }
+
+    /// Очистить дерево
+    pub fn clear(&mut self) {
+        self.leaves.clear();
     }
 
     /// Вычислить корневой хеш всего дерева
@@ -131,5 +141,14 @@ impl MerkleTree {
 
     pub fn is_empty(&self) -> bool {
         self.leaves.is_empty()
+    }
+}
+
+impl Drop for MerkleTree {
+    fn drop(&mut self) {
+        // Затереть хеши при уничтожении дерева
+        for leaf in &mut self.leaves {
+            leaf.zeroize();
+        }
     }
 }

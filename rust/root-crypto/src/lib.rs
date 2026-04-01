@@ -19,39 +19,46 @@ pub use asymmetric::{
 pub use symmetric::{decrypt, encrypt, pack_for_storage, unpack_from_storage};
 pub use types::{CryptoError, CryptoNonce, EncryptedBlob, Salt, SecureKey};
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use zeroize::Zeroizing;  // ✅ Добавить импорт
 
     #[test]
     fn test_derive_key() {
-        let salt: Salt = [1u8; 16];
-        let key = derive_key("test_password", &salt).unwrap();
+        let salt: Salt = [1u8; 32];
+        let password = Zeroizing::new(String::from("test_password"));  // ✅
+        let key = derive_key(&password, &salt).unwrap();
         // ключ — 32 байта
         assert_eq!(key.len(), 32);
     }
 
     #[test]
     fn test_same_password_same_key() {
-        let salt: Salt = [7u8; 16];
-        let key1 = derive_key("password", &salt).unwrap();
-        let key2 = derive_key("password", &salt).unwrap();
+        let salt: Salt = [7u8; 32];
+        let password = Zeroizing::new(String::from("password"));  // ✅
+        let key1 = derive_key(&password, &salt).unwrap();
+        let key2 = derive_key(&password, &salt).unwrap();
         // детерминированная деривация — одинаковый пароль даёт одинаковый ключ
         assert_eq!(key1.as_ref(), key2.as_ref());
     }
 
     #[test]
     fn test_different_passwords_different_keys() {
-        let salt: Salt = [3u8; 16];
-        let key1 = derive_key("password1", &salt).unwrap();
-        let key2 = derive_key("password2", &salt).unwrap();
+        let salt: Salt = [3u8; 32];
+        let password1 = Zeroizing::new(String::from("password1"));  // ✅
+        let password2 = Zeroizing::new(String::from("password2"));  // ✅
+        let key1 = derive_key(&password1, &salt).unwrap();
+        let key2 = derive_key(&password2, &salt).unwrap();
         assert_ne!(key1.as_ref(), key2.as_ref());
     }
 
     #[test]
     fn test_encrypt_decrypt_roundtrip() {
-        let salt: Salt = [1u8; 16];
-        let key = derive_key("test", &salt).unwrap();
+        let salt: Salt = [1u8; 32];
+        let password = Zeroizing::new(String::from("test"));  // ✅
+        let key = derive_key(&password, &salt).unwrap();
         let plaintext = b"secret message";
         let encrypted = encrypt(&key, plaintext).unwrap();
         let decrypted = decrypt(&key, &encrypted).unwrap();
@@ -60,9 +67,11 @@ mod tests {
 
     #[test]
     fn test_wrong_key_fails_decryption() {
-        let salt: Salt = [1u8; 16];
-        let key1 = derive_key("correct", &salt).unwrap();
-        let key2 = derive_key("wrong", &salt).unwrap();
+        let salt: Salt = [1u8; 32];
+        let password1 = Zeroizing::new(String::from("correct"));  // ✅
+        let password2 = Zeroizing::new(String::from("wrong"));    // ✅
+        let key1 = derive_key(&password1, &salt).unwrap();
+        let key2 = derive_key(&password2, &salt).unwrap();
         let encrypted = encrypt(&key1, b"data").unwrap();
         // неверный ключ — расшифровка должна упасть
         assert!(decrypt(&key2, &encrypted).is_err());

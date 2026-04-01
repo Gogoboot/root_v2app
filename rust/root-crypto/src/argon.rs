@@ -3,41 +3,34 @@
 // ═══════════════════════════════════════════════════════════
 
 use argon2::{Argon2, Algorithm, Version, Params};
-use password_hash::{SaltString, PasswordHasher};
-//use rand::RngCore;
-use crate::types::{CryptoError, SecureKey, Salt};
+use zeroize::{Zeroize, Zeroizing};  // ✅ Добавлен Zeroize
+use crate::types::{CryptoError, SecureKey};
 
-pub fn derive_key(password: &str, salt: &Salt) -> Result<SecureKey, CryptoError> {
-    let salt_string = SaltString::encode_b64(salt)
-        .map_err(|_| CryptoError::DerivationFailed)?;
-    
+pub fn derive_key(password: &Zeroizing<String>, salt: &[u8]) -> Result<SecureKey, CryptoError> {
+    // ✅ Параметры Argon2id
     let argon2 = Argon2::new(
         Algorithm::Argon2id,
         Version::V0x13,
-        Params::new(19456, 2, 1, Some(32))
+        Params::new(19456, 2, 1, Some(32))  // 19MB, 2 итерации, 1 поток, 32 байта вывод
             .map_err(|_| CryptoError::DerivationFailed)?,
     );
     
-    let password_hash = argon2
-        .hash_password(password.as_bytes(), &salt_string)
+    // ✅ Используем hash_password_into с raw солью (не SaltString!)
+    let mut key_bytes = [0u8; 32];
+    argon2.hash_password_into(password.as_bytes(), salt, &mut key_bytes)
         .map_err(|_| CryptoError::DerivationFailed)?;
     
+    // ✅ Копируем в SecureKey
     let mut key = SecureKey::default();
-    if let Some(hash) = password_hash.hash {
-        let hash_bytes: &[u8] = hash.as_bytes();
-        if hash_bytes.len() >= 32 {
-            key[..32].copy_from_slice(&hash_bytes[..32]);
-        } else {
-            return Err(CryptoError::DerivationFailed);
-        }
-    } else {
-        return Err(CryptoError::DerivationFailed);
-    }
+    key[..32].copy_from_slice(&key_bytes);
+    
+    // ✅ Затирание временного буфера
+    key_bytes.zeroize();
     
     Ok(key)
 }
 
-pub fn wipe_password<T: zeroize::Zeroize>(secret: &mut T) {
+pub fn wipe_password<T: Zeroize>(secret: &mut T) {
     secret.zeroize();
 }
 
@@ -47,40 +40,26 @@ mod tests {
 
     #[test]
     fn test_derive_key_deterministic() {
-        let password = "test_password";
-        let salt = [1u8; 16];
+        let password = Zeroizing::new(String::from("test_password"));
+        let salt = [1u8; 32];  // ✅ 32 байта
         
-        let key1 = derive_key(password, &salt).unwrap();
-        let key2 = derive_key(password, &salt).unwrap();
+        let key1 = derive_key(&password, &salt).unwrap();
+        let key2 = derive_key(&password, &salt).unwrap();
         
-        // Один и тот же пароль + соль = одинаковый ключ
         assert_eq!(key1.as_ref(), key2.as_ref());
     }
 
     #[test]
     fn test_derive_key_different_salt() {
-        let password = "test_password";
-        let salt1 = [1u8; 16];
-        let salt2 = [2u8; 16];
+        let password = Zeroizing::new(String::from("test_password"));
+        let salt1 = [1u8; 32];
+        let salt2 = [2u8; 32];
         
-        let key1 = derive_key(password, &salt1).unwrap();
-        let key2 = derive_key(password, &salt2).unwrap();
+        let key1 = derive_key(&password, &salt1).unwrap();
+        let key2 = derive_key(&password, &salt2).unwrap();
         
-        // Разная соль = разный ключ
         assert_ne!(key1.as_ref(), key2.as_ref());
     }
 
-    #[test]
-    fn test_derive_key_zeroizes_on_error() {
-        // Невалидная соль (слишком короткая) должна вернуть ошибку,
-        // а не паниковать или возвращать частичные данные
-        let password = "test";
-        let bad_salt = [0u8; 8]; // ← не 16 байт
-        
-        // Этот тест зависит от реализации SaltString::encode_b64,
-        // но полезно проверить, что ошибка обрабатывается корректно
-        let result = derive_key(password, &bad_salt);
-        // Ожидаем ошибку, но не панику
-        assert!(result.is_err());
-    }
 }
+

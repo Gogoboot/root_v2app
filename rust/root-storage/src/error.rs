@@ -14,6 +14,9 @@ pub enum StorageError {
     
     #[error("Ошибка БД: {0}")]
     Database(#[from] rusqlite::Error),
+
+    #[error("Контакт с именем {0} уже существует")]
+    DuplicateNickname(String), 
     
     #[error("Крипто ошибка: {0}")]
     Crypto(String),

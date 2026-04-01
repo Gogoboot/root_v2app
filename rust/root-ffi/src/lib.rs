@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn test_identity_generate() {
-        let (identity, mnemonic) = Identity::generate();
+        let (identity, mnemonic) = Identity::generate().unwrap();
         let key = hex::encode(identity.verifying_key.as_bytes());
         assert_eq!(key.len(), 64);
         assert!(mnemonic.to_string().split_whitespace().count() == 24);

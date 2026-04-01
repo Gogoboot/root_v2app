@@ -10,5 +10,7 @@ members = [
 ]
 resolver = "2"
 
-[workspace.dependencies]  # ← Добавь это
-once_cell = "1.19"        # ← И это
+[workspace.dependencies]  
+once_cell = "1.19"        
+log = "0.4"               
+env_logger = "0.11"       

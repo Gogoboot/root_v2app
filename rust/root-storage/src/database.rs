@@ -18,7 +18,7 @@ use root_crypto::{
 };
 use rusqlite::{Connection, params};
 use std::time::{SystemTime, UNIX_EPOCH};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 pub struct Database {
     conn: Option<Connection>,
@@ -53,17 +53,45 @@ impl Database {
     /// use zeroize::Zeroizing;
     ///
     /// // 1. Оборачиваем пароль в защищённый буфер
-    /// let mut password = Zeroizing::new(user_input_string);
     ///
     /// // 2. Открываем базу
+    /// let password = Zeroizing::new(password_string);
     /// let db = Database::open("/path/to/db.sqlite", &password)?;
     ///
     /// // 3. Пароль автоматически затрётся при выходе из области видимости (drop)
     /// //    или можно затереть явно:
     /// // drop(password);
+    ///
+    ///
+
+    /// Загружает Merkle tree из существующих сообщений в БД.
+    /// Вызывается один раз при открытии базы.
+    fn load_merkle_tree(conn: &Connection) -> Result<MerkleTree, StorageError> {
+        let mut tree = MerkleTree::new();
+
+        let mut stmt = conn
+            .prepare("SELECT merkle_hash FROM messages ORDER BY id ASC")
+            .map_err(StorageError::Database)?;
+
+        let hashes: Vec<String> = stmt
+            .query_map([], |row| row.get(0))?
+            .collect::<Result<Vec<_>, rusqlite::Error>>()
+            .map_err(StorageError::Database)?;
+
+        for hash_hex in hashes {
+            let hash_bytes =
+                hex::decode(&hash_hex).map_err(|e| StorageError::Crypto(e.to_string()))?;
+            let mut hash = [0u8; 32];
+            hash.copy_from_slice(&hash_bytes);
+            tree.add_leaf(hash);
+        }
+
+        Ok(tree)
+    }
+
     /// ```
     /// Открывает БД, деривирует ключ через Argon2id используя соль из Keychain (или мигрирует файл).
-    pub fn open(path: &str, password: &str) -> Result<Self, StorageError> {
+    pub fn open(path: &str, password:  &Zeroizing<String>) -> Result<Self, StorageError> {
         println!("  🔑 Инициализация SaltManager (Keychain/Migration)...");
 
         // Определяем директорию приложения для SaltManager.
@@ -107,48 +135,33 @@ impl Database {
         // Примечание: Сама БД теперь содержит только зашифрованные данные, SQLCipher не нужен.
         let conn = Connection::open(path).map_err(StorageError::Database)?;
 
-        // 5. Загружаем Merkle Tree из существующих сообщений
-        let mut merkle = MerkleTree::new();
-        {
-            let mut stmt = conn
-                .prepare("SELECT merkle_hash FROM messages ORDER BY id ASC")
-                .map_err(StorageError::Database)?;
-            let hashes = stmt
-                .query_map([], |row| row.get::<_, String>(0))?
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(StorageError::Database)?;
-
-            for hash_hex in hashes {
-                if let Ok(bytes) = hex::decode(&hash_hex) {
-                    if bytes.len() == 32 {
-                        let mut hash = [0u8; 32];
-                        hash.copy_from_slice(&bytes);
-                        merkle.add_leaf(hash);
-                    }
-                }
-            }
-            println!("  🌲 Merkle Tree загружен: {} листьев", merkle.len());
-        }
+        let merkle = Self::load_merkle_tree(&conn)?;
 
         Ok(Database {
             conn: Some(conn),
             key,
-            salt_manager,
+            salt_manager, // Сохраняем менеджер в структуре
             merkle,
             db_path: path.to_string(),
             panicked: false,
         })
-        
     }
 
     fn conn(&self) -> Result<&Connection, StorageError> {
         self.conn.as_ref().ok_or(StorageError::NotOpen)
     }
 
-    pub fn initialize(&self) -> Result<(), StorageError> {
-        self.conn()?
-            .execute_batch(
-                "CREATE TABLE IF NOT EXISTS messages (
+    pub fn initialize(&mut self) -> Result<(), StorageError> {
+        // ✅ Проверка panic (консистентность)
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
+
+        let conn = self.conn.as_mut().ok_or(StorageError::NotOpen)?;
+        let tx = conn.transaction().map_err(StorageError::Database)?;
+
+        tx.execute_batch(
+            "CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 from_key TEXT NOT NULL,
                 to_key TEXT NOT NULL,
@@ -175,10 +188,16 @@ impl Database {
                 mnemonic TEXT NOT NULL,
                 created_at INTEGER NOT NULL
             );
+
+            -- ✅ Уникальный индекс на nickname
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_nickname ON contacts(nickname);
+
             CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_key, timestamp);
             CREATE INDEX IF NOT EXISTS idx_messages_from ON messages(from_key, timestamp);",
-            )
-            .map_err(StorageError::Database)?;
+        )
+        .map_err(StorageError::Database)?;
+
+        tx.commit().map_err(StorageError::Database)?;
         println!("  📋 Таблицы инициализированы");
         Ok(())
     }
@@ -187,6 +206,9 @@ impl Database {
         if self.panicked {
             return Err(StorageError::PanicButtonActivated);
         }
+
+        let conn = self.conn.as_mut().ok_or(StorageError::NotOpen)?;
+        let tx = conn.transaction().map_err(StorageError::Database)?;
 
         let hash = msg.hash();
         let hash_hex = hex::encode(hash);
@@ -197,10 +219,10 @@ impl Database {
         let blob = pack_for_storage(&encrypted);
         let content_to_save = hex::encode(blob);
 
-        let conn = self.conn.as_ref().ok_or(StorageError::NotOpen)?;
-        conn.execute(
+        // Шаг 1: Вставляем сообщение
+        tx.execute(
             "INSERT INTO messages (from_key, to_key, content, timestamp, is_read, merkle_hash)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 msg.from_key,
                 msg.to_key,
@@ -212,17 +234,30 @@ impl Database {
         )
         .map_err(StorageError::Database)?;
 
-        let id = conn.last_insert_rowid() as u64;
+        let id = tx.last_insert_rowid() as u64;
         msg.id = Some(id);
+
+        // ✅ Шаг 2: СНАЧАЛА добавляем лист в дерево
         self.merkle.add_leaf(hash);
 
-        let root = self.merkle.root().map(hex::encode).unwrap_or_default();
-        conn.execute(
+        // ✅ Шаг 3: Теперь root и len соответствуют друг другу
+        let root = self
+            .merkle
+            .root()
+            .map(hex::encode)
+            .ok_or(StorageError::Crypto("Merkle tree empty".to_string()))?;
+
+        tx.execute(
             "INSERT INTO merkle_roots (root_hash, msg_count, timestamp) VALUES (?1, ?2, ?3)",
-            params![root, self.merkle.len() as i64, now_secs()? as i64],
+            params![root, self.merkle.len() as i64, now_secs()? as i64], // ← Без +1
         )
         .map_err(StorageError::Database)?;
 
+        // ✅ Шаг 4: Коммит
+        tx.commit().map_err(StorageError::Database)?;
+
+        // ✅ Коммит успешен — данные сохранены в БД
+        //    self.merkle уже обновлён (до коммита), всё синхронизировано
         Ok(id)
     }
 
@@ -424,9 +459,10 @@ impl Database {
         Ok(verify_tree.root() == self.merkle.root())
     }
 
-    pub fn panic_destroy(&mut self) -> StorageError {
+    pub fn panic_destroy(&mut self) -> Result<(), StorageError> {
         self.panicked = true;
-    PanicButton::activate(&mut self.key, &mut self.conn, &self.db_path)
+        PanicButton::activate(&mut self.key, &mut self.conn, &self.db_path)?;
+        Ok(())
     }
 
     pub fn print_stats(&self) {
