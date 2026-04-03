@@ -30,6 +30,9 @@ pub enum ApiError {
 
     #[error("Panic Button активирован — перезапусти приложение")]
     PanicActivated,
+
+    #[error("Неверное состояние приложения: {0}")]
+    InvalidState(String),
 }
 
 /// Информация об идентичности — передаётся в Flutter

@@ -44,6 +44,14 @@ pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiErr
         println!("  ✅ Identity загружена из БД");
     }
 
+    // Обновляем фазу
+    let phase = if state.identity.is_some() {
+        root_core::state::AppPhase::Ready
+    } else {
+        root_core::state::AppPhase::DbOpen
+    };
+    state.transition(phase);
+
     state.database = Some(db);
     println!("  ✅ База данных разблокирована: {}", db_path);
     Ok(true)

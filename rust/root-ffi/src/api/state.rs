@@ -13,6 +13,20 @@ lazy_static::lazy_static! {
     pub static ref APP_STATE: Arc<Mutex<AppState>> = Arc::new(Mutex::new(AppState::new()));
 }
 
+/// Макрос проверки состояния приложения
+/// Возвращает InvalidState если текущая фаза не совпадает с ожидаемой
+#[macro_export]
+macro_rules! require_state {
+    ($($pat:pat_param)|+) => {{
+        let state = $crate::api::state::APP_STATE.lock().unwrap();
+        if !matches!(state.phase, $($pat)|+) {
+            return Err($crate::api::types::ApiError::InvalidState(
+                format!("Неверное состояние: {:?}", state.phase)
+            ));
+        }
+    }};
+}
+
 /// Удобный макрос для получения лока
 #[macro_export]
 macro_rules! with_state {

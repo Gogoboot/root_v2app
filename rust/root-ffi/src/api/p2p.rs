@@ -5,11 +5,14 @@
 
 use crate::api::state::APP_STATE;
 use crate::api::types::{ApiError, MessageInfo};
+use crate::require_state;
 use root_core::state::IncomingMessage;  // ✅ Правильный тип из root_core
 use log::{info, error};
 use root_network::{P2pOutMessage, generate_topic_id};  // ← Оба импорта!
 
+
 pub fn start_p2p_node() -> Result<String, ApiError> {
+    require_state!(root_core::state::AppPhase::Ready);
     let key_bytes: [u8; 32] = {
         let state = APP_STATE.lock()
             .map_err(|_| ApiError::StorageError("AppState lock poisoned".into()))?;
@@ -59,6 +62,7 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
         }
     });
 
+    APP_STATE.lock().unwrap().transition(root_core::state::AppPhase::P2PActive);
     Ok("p2p-node-started".to_string())
 }
 

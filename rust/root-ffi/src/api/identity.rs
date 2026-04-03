@@ -3,15 +3,15 @@
 // FFI функции: генерация и восстановление ключей
 // ============================================================
 
-use root_identity::Identity;
-use zeroize::Zeroizing;
-use root_economy::Ledger;
 use super::state::APP_STATE;
 use super::types::{ApiError, IdentityInfo};
+use root_economy::Ledger;
+use root_identity::Identity;
+use zeroize::Zeroizing;
 
 pub fn generate_identity() -> Result<IdentityInfo, ApiError> {
-    let (identity, mnemonic) = Identity::generate()
-        .map_err(|e| ApiError::IdentityError(e.to_string()))?;
+    let (identity, mnemonic) =
+        Identity::generate().map_err(|e| ApiError::IdentityError(e.to_string()))?;
     let pubkey_hex = hex::encode(identity.verifying_key.as_bytes());
     let mnemonic_str = mnemonic.to_string();
 
@@ -33,6 +33,10 @@ pub fn generate_identity() -> Result<IdentityInfo, ApiError> {
         println!("  ✅ Identity сохранена в БД");
     }
 
+    // Обновляем фазу
+    let mut state = APP_STATE.lock().unwrap();
+    state.transition(root_core::state::AppPhase::Identified);
+
     println!("  ✅ Identity создана: {}...", &info.public_key[..16]);
     Ok(info)
 }
@@ -43,8 +47,8 @@ pub fn restore_identity(mnemonic: String) -> Result<IdentityInfo, ApiError> {
         .parse::<Mnemonic>()
         .map_err(|e| ApiError::IdentityError(e.to_string()))?;
 
-    let identity = Identity::from_mnemonic(&parsed)
-        .map_err(|e| ApiError::IdentityError(e.to_string()))?;
+    let identity =
+        Identity::from_mnemonic(&parsed).map_err(|e| ApiError::IdentityError(e.to_string()))?;
     let pubkey_hex = hex::encode(identity.verifying_key.as_bytes());
 
     let info = IdentityInfo {
@@ -66,13 +70,19 @@ pub fn restore_identity(mnemonic: String) -> Result<IdentityInfo, ApiError> {
 
 pub fn get_public_key() -> Result<String, ApiError> {
     let state = APP_STATE.lock().unwrap();
-    let identity = state.identity.as_ref().ok_or(ApiError::IdentityNotInitialized)?;
+    let identity = state
+        .identity
+        .as_ref()
+        .ok_or(ApiError::IdentityNotInitialized)?;
     Ok(hex::encode(identity.verifying_key.as_bytes()))
 }
 
 pub fn sign_message(message: Vec<u8>) -> Result<Vec<u8>, ApiError> {
     let state = APP_STATE.lock().unwrap();
-    let identity = state.identity.as_ref().ok_or(ApiError::IdentityNotInitialized)?;
+    let identity = state
+        .identity
+        .as_ref()
+        .ok_or(ApiError::IdentityNotInitialized)?;
     let signature = identity.sign(&message);
     Ok(signature.to_bytes().to_vec())
 }
