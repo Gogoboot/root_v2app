@@ -6,12 +6,16 @@
 use root_storage::StorageError;
 use super::state::APP_STATE;
 use super::types::ApiError;
+use crate::require_state;
+use root_core::state::AppPhase;
+
 
 pub fn get_version() -> String {
     format!("{} ({})", crate::VERSION, crate::BUILD_DATE)
 }
 
 pub fn verify_db_integrity() -> Result<bool, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let state = APP_STATE.lock().unwrap();
     let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     db.verify_integrity()

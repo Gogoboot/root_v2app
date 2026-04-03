@@ -6,6 +6,7 @@
 use crate::api::state::APP_STATE;
 use crate::api::types::{ApiError, MessageInfo};
 use crate::require_state;
+use root_core::state::AppPhase;
 use root_core::state::IncomingMessage;  // ✅ Правильный тип из root_core
 use log::{info, error};
 use root_network::{P2pOutMessage, generate_topic_id};  // ← Оба импорта!
@@ -70,6 +71,7 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
 
 // ✅ Исправленная функция:
 pub fn send_p2p_message(recipient_pubkey: String, content: String) -> Result<(), ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let state = APP_STATE.lock()
         .map_err(|_| ApiError::StorageError("AppState lock poisoned".into()))?;
 
@@ -125,6 +127,7 @@ pub fn get_peer_count() -> u32 {
 
 /// 🔴 НОВАЯ ФУНКЦИЯ: Корректная остановка P2P узла
 pub fn stop_p2p_node() -> Result<(), ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let mut state = APP_STATE.lock()
         .map_err(|_| ApiError::StorageError("AppState lock poisoned".into()))?;
     

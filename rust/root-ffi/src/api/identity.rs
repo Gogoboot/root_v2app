@@ -8,6 +8,9 @@ use super::types::{ApiError, IdentityInfo};
 use root_economy::Ledger;
 use root_identity::Identity;
 use zeroize::Zeroizing;
+use crate::require_state;
+use root_core::state::AppPhase;
+
 
 pub fn generate_identity() -> Result<IdentityInfo, ApiError> {
     let (identity, mnemonic) =
@@ -69,6 +72,7 @@ pub fn restore_identity(mnemonic: String) -> Result<IdentityInfo, ApiError> {
 }
 
 pub fn get_public_key() -> Result<String, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let state = APP_STATE.lock().unwrap();
     let identity = state
         .identity
@@ -78,6 +82,7 @@ pub fn get_public_key() -> Result<String, ApiError> {
 }
 
 pub fn sign_message(message: Vec<u8>) -> Result<Vec<u8>, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let state = APP_STATE.lock().unwrap();
     let identity = state
         .identity

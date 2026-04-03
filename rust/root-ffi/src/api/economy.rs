@@ -4,12 +4,15 @@
 // ============================================================
 
 use root_economy::{DROPS_PER_SAP, GENESIS_BONUS_DROPS, VestingSchedule};
+use crate::require_state;
+use root_core::state::AppPhase;
 use super::identity::get_public_key;
 use super::messaging::now_secs;
 use super::state::APP_STATE;
 use super::types::{ApiError, BalanceInfo, NodeStatus, P2pWarning, TxResult, VestingInfo};
 
 pub fn get_balance() -> Result<BalanceInfo, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let public_key = get_public_key()?;
     let state = APP_STATE.lock().unwrap();
     let ledger = state.ledger.as_ref().ok_or(ApiError::LedgerNotInitialized)?;
@@ -37,6 +40,7 @@ pub fn get_balance() -> Result<BalanceInfo, ApiError> {
 }
 
 pub fn transfer(to_key: String, amount_sap: f64) -> Result<TxResult, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     if amount_sap <= 0.0 {
         return Err(ApiError::InvalidInput("Сумма должна быть больше 0".to_string()));
     }
@@ -58,6 +62,7 @@ pub fn transfer(to_key: String, amount_sap: f64) -> Result<TxResult, ApiError> {
 }
 
 pub fn p2p_exchange(to_key: String, amount_sap: f64) -> Result<TxResult, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     if amount_sap <= 0.0 {
         return Err(ApiError::InvalidInput("Сумма должна быть больше 0".to_string()));
     }
@@ -96,6 +101,7 @@ pub fn get_p2p_warning() -> P2pWarning {
 }
 
 pub fn get_vesting_info() -> Result<Option<VestingInfo>, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let public_key = get_public_key()?;
     let state = APP_STATE.lock().unwrap();
     let ledger = state.ledger.as_ref().ok_or(ApiError::LedgerNotInitialized)?;
@@ -121,6 +127,7 @@ pub fn get_vesting_info() -> Result<Option<VestingInfo>, ApiError> {
 }
 
 pub fn stake_node() -> Result<bool, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let public_key = get_public_key()?;
     let mut state = APP_STATE.lock().unwrap();
     let ledger = state.ledger.as_mut().ok_or(ApiError::LedgerNotInitialized)?;
@@ -129,6 +136,7 @@ pub fn stake_node() -> Result<bool, ApiError> {
 }
 
 pub fn unstake_node() -> Result<bool, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let public_key = get_public_key()?;
     let mut state = APP_STATE.lock().unwrap();
     let ledger = state.ledger.as_mut().ok_or(ApiError::LedgerNotInitialized)?;
@@ -137,6 +145,7 @@ pub fn unstake_node() -> Result<bool, ApiError> {
 }
 
 pub fn get_node_status() -> Result<NodeStatus, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let public_key = get_public_key()?;
     let state = APP_STATE.lock().unwrap();
     let ledger = state.ledger.as_ref().ok_or(ApiError::LedgerNotInitialized)?;
@@ -159,6 +168,7 @@ pub fn get_node_status() -> Result<NodeStatus, ApiError> {
 }
 
 pub fn claim_genesis(ip: String, device_id: String) -> Result<f64, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let public_key = get_public_key()?;
     let mut state = APP_STATE.lock().unwrap();
     let ledger = state.ledger.as_mut().ok_or(ApiError::LedgerNotInitialized)?;

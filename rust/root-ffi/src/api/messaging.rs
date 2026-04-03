@@ -10,6 +10,7 @@ use super::identity::get_public_key;
 use super::state::APP_STATE;
 use super::types::{ApiError, MessageInfo};
 use crate::require_state;
+use root_core::state::AppPhase;
 
 
 pub fn send_message(to_key: String, content: String) -> Result<u64, ApiError> {
@@ -61,6 +62,7 @@ pub fn send_message(to_key: String, content: String) -> Result<u64, ApiError> {
 
 
 pub fn get_messages() -> Result<Vec<MessageInfo>, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let public_key = get_public_key()?;
     let state = APP_STATE.lock().unwrap();
     let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
@@ -90,6 +92,7 @@ pub fn get_messages() -> Result<Vec<MessageInfo>, ApiError> {
 }
 
 pub fn get_unread_count() -> Result<u64, ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let public_key = get_public_key()?;
     let state = APP_STATE.lock().unwrap();
     let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
@@ -98,6 +101,7 @@ pub fn get_unread_count() -> Result<u64, ApiError> {
 }
 
 pub fn mark_message_read(msg_id: u64) -> Result<(), ApiError> {
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let state = APP_STATE.lock().unwrap();
     let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     db.mark_read(msg_id)
