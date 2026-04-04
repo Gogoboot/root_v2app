@@ -7,15 +7,13 @@ edition = "2024"
 libp2p = { version = "0.53", features = [
     "tcp", "noise", "yamux", "gossipsub", "mdns", "tokio", "macros", "quic"
 ]}
-tokio   = { version = "1", features = ["full"] }
-futures = "0.3"
-tracing = "0.1"
+futures            = "0.3"
+tracing            = "0.1"
 tracing-subscriber = "0.3"
-serde      = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-sha2 = "0.10"
-hex  = "0.4"
-
-thiserror = "1.0"
-
-root-crypto = { path = "../root-crypto" }
+tokio       = { workspace = true }
+serde       = { workspace = true }
+serde_json  = { workspace = true }
+sha2        = { workspace = true }
+hex         = { workspace = true }
+thiserror   = { workspace = true }
+root-crypto = { workspace = true }

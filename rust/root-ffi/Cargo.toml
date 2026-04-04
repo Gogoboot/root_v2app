@@ -2,8 +2,6 @@
 name = "root_ffi"
 version = "0.1.0"
 edition = "2024"
-
-
 metadata.todo = [
     "#37: Активировать salt_manager для ротации ключей"
 ]
@@ -16,77 +14,52 @@ name = "root_ffi"
 crate-type = ["cdylib", "staticlib", "rlib"]
 path = "src/lib.rs"
 
-# ── Исполняемые файлы ────────────────────────────────────────
-
 [[bin]]
 name = "root-cli"
 path = "src/cli/main.rs"
 
-# ── Зависимости ──────────────────────────────────────────────
-
 [dependencies]
-
-once_cell = { workspace = true } 
-
-# Криптография
-bip39          = "2.0"
-ed25519-dalek  = { version = "2.0", features = ["rand_core"] }
-x25519-dalek = "2.0"        # X25519 ECDH обмен
-rand           = { version = "0.8", features = ["getrandom"] }
-dirs = "5.0"  # Путь к app data (для соли)
-generic-array = "0.14"
-root-identity = { path = "../root-identity" }
-root-crypto = { path = "../root-crypto" }
-root-storage = { path = "../root-storage" }
-root-network = { path = "../root-network" }
-root-economy = { path = "../root-economy" }
-root-core = { path = "../root-core" }
-
-
-sharks         = "0.5"
-chacha20poly1305 = "0.10"      # ChaCha20-Poly1305 AEAD шифрование
-zeroize = { version = "1.7", features = ["zeroize_derive"] }  # Очистка памяти
-
-# Flutter мост
+# Уникальные для root-ffi
+bip39              = "2.0"
+sharks             = "0.5"
+x25519-dalek       = "2.0"
+generic-array      = "0.14"
+chacha20poly1305   = "0.10"
+futures            = "0.3"
+tracing            = "0.1"
+tracing-subscriber = "0.3"
+lazy_static        = "1.4"
+clap               = { version = "4", features = ["derive"] }
+ffi-support        = "0.4"
 flutter_rust_bridge = "2.11.1"
-
-# P2P сеть
+rstest             = "0.18"
+criterion          = "0.4"
 libp2p = { version = "0.53", features = [
     "tcp", "noise", "yamux", "gossipsub", "mdns", "tokio", "macros"
 ]}
-tokio   = { version = "1", features = ["full"] }
-futures = "0.3"
-tracing = "0.1"
-tracing-subscriber = "0.3"
 
-# Сериализация
-serde      = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-# Утилиты
-sha2       = "0.10"
-hex        = "0.4"
-thiserror  = "1.0"
-
-# База данных
-rusqlite = { version = "0.31", features = ["bundled"] }
-argon2   = "0.5"      # Argon2id для деривации ключа
-password-hash = "0.5"  # ← ДОБАВИТЬ (нужен для argon2 0.5)
-
-# Разное
-lazy_static = "1.4"
-clap        = { version = "4", features = ["derive"] }
-
-# FFI (для Flutter)
-ffi-support = "0.4"
-
-# Для безопасного хранения секретов в OS
-keyring = "2.0"
-# Для кодирования бинарной соли в строку (требуется некоторым бэкендам keyring)
-base64 = "0.21"
-
-# Логирование Тестирование(добавлено для задачи #17)
-env_logger = { workspace = true }
-log = { workspace = true }
-rstest = "0.18"
-criterion = "0.4"
+# Workspace
+once_cell     = { workspace = true }
+ed25519-dalek = { workspace = true }
+rand          = { workspace = true }
+zeroize       = { workspace = true }
+serde         = { workspace = true }
+serde_json    = { workspace = true }
+sha2          = { workspace = true }
+hex           = { workspace = true }
+thiserror     = { workspace = true }
+tokio         = { workspace = true }
+rusqlite      = { workspace = true }
+argon2        = { workspace = true }
+password-hash = { workspace = true }
+base64        = { workspace = true }
+dirs          = { workspace = true }
+keyring       = { workspace = true }
+log           = { workspace = true }
+env_logger    = { workspace = true }
+root-identity = { workspace = true }
+root-crypto   = { workspace = true }
+root-storage  = { workspace = true }
+root-network  = { workspace = true }
+root-economy  = { workspace = true }
+root-core     = { workspace = true }
