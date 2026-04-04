@@ -53,10 +53,10 @@ impl StoragePort for Database {
 
     fn save_contact(&self, contact: &DomainContact) -> Result<(), DomainError> {
         let storage_contact = Contact {
-            public_key: contact.public_key.clone(),
-            nickname: contact.nickname.clone(),
-            added_at: contact.added_at,
-            reputation: contact.reputation,
+            public_key: contact.public_key().to_string(),
+            nickname:   contact.nickname().to_string(),
+            added_at:   contact.added_at(),
+            reputation: contact.reputation(),
         };
         self.add_contact(&storage_contact)
             .map_err(|e| DomainError::Storage(e.to_string()))

@@ -37,7 +37,7 @@ pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiErr
         use bip39::Mnemonic;
         let mnemonic = Zeroizing::new(mnemonic_str);
         if let Ok(parsed) = mnemonic.parse::<Mnemonic>() {
-            if let Ok(identity) = Identity::from_mnemonic(&parsed) {
+            if let Ok(identity) = Identity::from_mnemonic(&parsed, "") {
                 state.identity = Some(identity);
             }
         }

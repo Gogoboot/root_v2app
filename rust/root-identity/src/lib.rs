@@ -4,6 +4,7 @@
 // Ed25519 ключи, BIP-39 мнемоника, Shamir, защита в памяти
 // ============================================================
 
+pub mod constants;
 pub mod keys;
 pub mod protected;
 pub mod seed;
@@ -11,8 +12,8 @@ pub mod shamir;
 pub mod error;  // ← новый модуль
 
 
+pub use constants::{BIP39_PREFIX, DERIVATION_INDEX};
 pub use error::IdentityError;
-
 pub use keys::Identity;
 pub use protected::ProtectedKey;
 pub use seed::SecretSeed;
