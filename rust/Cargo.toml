@@ -6,7 +6,7 @@ members = [
     "root-storage",
     "root-network",
     "root-economy",
-    "root-core",
+    "root-core", "root-domain",
 ]
 resolver = "2"
 
