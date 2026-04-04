@@ -49,3 +49,4 @@ root-storage  = { path = "root-storage" }
 root-economy  = { path = "root-economy" }
 root-network  = { path = "root-network" }
 root-core     = { path = "root-core" }
+root-domain  = { path = "root-domain" }

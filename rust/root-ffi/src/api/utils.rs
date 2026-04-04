@@ -3,7 +3,6 @@
 // Утилиты: версия, валидация, целостность БД
 // ============================================================
 
-use root_storage::StorageError;
 use super::state::APP_STATE;
 use super::types::ApiError;
 use crate::require_state;
@@ -19,7 +18,7 @@ pub fn verify_db_integrity() -> Result<bool, ApiError> {
     let state = APP_STATE.lock().unwrap();
     let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     db.verify_integrity()
-        .map_err(|e: StorageError| ApiError::StorageError(e.to_string()))
+    .map_err(ApiError::from)
 }
 
 pub fn validate_public_key(key: String) -> bool {

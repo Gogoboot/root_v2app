@@ -135,3 +135,17 @@ pub struct P2pWarning {
     pub unsafe_methods: Vec<String>,
     pub message: String,
 }
+
+// ─── Маппинг ошибок инфраструктуры → ApiError ───────────────
+
+use root_storage::StorageError;
+
+impl From<StorageError> for ApiError {
+    fn from(e: StorageError) -> Self {
+        match e {
+            StorageError::NotOpen => ApiError::DatabaseNotOpen,
+            StorageError::PanicButtonActivated => ApiError::PanicActivated,
+            other => ApiError::StorageError(other.to_string()),
+        }
+    }
+}

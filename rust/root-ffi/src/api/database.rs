@@ -25,10 +25,10 @@ pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiErr
 
     // ✅ Добавить mut
     let mut db = Database::open(&db_path, &password)
-        .map_err(|e: root_storage::StorageError| ApiError::StorageError(e.to_string()))?;
+        .map_err(ApiError::from)?;
 
     db.initialize()
-        .map_err(|e: root_storage::StorageError| ApiError::StorageError(e.to_string()))?;
+        .map_err(ApiError::from)?;
 
     let mut state = APP_STATE.lock().unwrap();
 
@@ -73,7 +73,7 @@ pub fn panic_button() -> Result<(), ApiError> {
     // В root-ffi/src/api/database.rs:
     if let Some(db) = state.database.as_mut() {
         db.panic_destroy()
-            .map_err(|e: root_storage::StorageError| ApiError::StorageError(e.to_string()))?;
+            .map_err(ApiError::from)?;
     }
 
     state.identity = None;
@@ -88,7 +88,7 @@ pub fn verify_db_integrity() -> Result<bool, ApiError> {
     let state = APP_STATE.lock().unwrap();
     let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     db.verify_integrity()
-        .map_err(|e: root_storage::StorageError| ApiError::StorageError(e.to_string()))
+    .map_err(ApiError::from)
 }
 
 pub fn is_panic_activated() -> bool {

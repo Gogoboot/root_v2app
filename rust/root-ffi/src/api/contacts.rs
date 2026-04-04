@@ -3,7 +3,7 @@
 // FFI функции: управление контактами
 // ============================================================
 
-use root_storage::{Contact, StorageError};
+use root_storage::Contact;
 use super::messaging::now_secs;
 use super::state::APP_STATE;
 use super::types::ApiError;
@@ -25,7 +25,7 @@ pub fn add_contact(public_key: String, nickname: String) -> Result<(), ApiError>
         added_at: now_secs(),
         reputation: 50,
     })
-    .map_err(|e: StorageError| ApiError::StorageError(e.to_string()))
+    .map_err(ApiError::from)
 }
 
 pub fn get_contacts() -> Result<Vec<Contact>, ApiError> {
@@ -33,5 +33,5 @@ pub fn get_contacts() -> Result<Vec<Contact>, ApiError> {
     let state = APP_STATE.lock().unwrap();
     let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
     db.get_contacts()
-        .map_err(|e: StorageError| ApiError::StorageError(e.to_string()))
+    .map_err(ApiError::from)
 }

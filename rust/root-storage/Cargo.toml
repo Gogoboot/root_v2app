@@ -19,3 +19,4 @@ dirs          = { workspace = true }
 log           = { workspace = true }
 env_logger    = { workspace = true }
 root-crypto   = { workspace = true }
+root-domain   = { workspace = true }

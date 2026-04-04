@@ -63,3 +63,4 @@ root-storage  = { workspace = true }
 root-network  = { workspace = true }
 root-economy  = { workspace = true }
 root-core     = { workspace = true }
+root-domain   = { workspace = true }
