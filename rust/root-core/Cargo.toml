@@ -1,13 +1,11 @@
-
-#root-core/Cargo.toml
 [package]
 name = "root-core"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-root-identity = { path = "../root-identity" }
-root-storage  = { path = "../root-storage" }
-root-economy  = { path = "../root-economy" }
-root-network  = { path = "../root-network" }
-tokio         = { version = "1", features = ["full"] }
+tokio         = { workspace = true }
+root-identity = { workspace = true }
+root-storage  = { workspace = true }
+root-economy  = { workspace = true }
+root-network  = { workspace = true }

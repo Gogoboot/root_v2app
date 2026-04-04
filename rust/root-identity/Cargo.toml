@@ -5,11 +5,11 @@ edition = "2024"
 
 [dependencies]
 bip39         = "2.0"
-ed25519-dalek = { version = "2.0", features = ["rand_core"] }
-rand          = { version = "0.8", features = ["getrandom"] }
 sharks        = "0.5"
-zeroize       = { version = "1.7", features = ["zeroize_derive"] }
-serde         = { version = "1.0", features = ["derive"] }
-hex           = "0.4"
-thiserror     = "1.0"
-root-crypto = { path = "../root-crypto" }
+ed25519-dalek = { workspace = true }
+rand          = { workspace = true }
+zeroize       = { workspace = true }
+serde         = { workspace = true }
+hex           = { workspace = true }
+thiserror     = { workspace = true }
+root-crypto   = { workspace = true }
