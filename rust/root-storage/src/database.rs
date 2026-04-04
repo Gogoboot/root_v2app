@@ -14,7 +14,8 @@ use super::models::{Contact, Message};
 use super::panic::PanicButton;
 use crate::key::SaltManager; // <-- Импортируем новый менеджер
 use root_crypto::{
-    Salt, SecureKey, decrypt, derive_key, encrypt, pack_for_storage, unpack_from_storage,
+    CryptoError, Salt, SecureKey, decrypt, derive_key, encrypt, pack_for_storage,
+    unpack_from_storage,
 };
 use rusqlite::{Connection, params};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -79,8 +80,9 @@ impl Database {
             .map_err(StorageError::Database)?;
 
         for hash_hex in hashes {
-            let hash_bytes =
-                hex::decode(&hash_hex).map_err(|e| StorageError::Crypto(e.to_string()))?;
+            let hash_bytes = hex::decode(&hash_hex).map_err(|e| {
+                root_crypto::CryptoError::Other(format!("hex decode in merkle: {}", e))
+            })?;
             let mut hash = [0u8; 32];
             hash.copy_from_slice(&hash_bytes);
             tree.add_leaf(hash);
@@ -107,8 +109,8 @@ impl Database {
             .to_path_buf();
 
         // 1. Создаем менеджер соли (выполняет чтение из Keychain или миграцию)
-        let salt_manager =
-            SaltManager::new(&app_data_dir).map_err(|e| StorageError::KeyError(e.to_string()))?;
+        let salt_manager = SaltManager::new(&app_data_dir)
+            .map_err(|e| StorageError::KeyError(format!("salt init: {}", e)))?;
 
         println!("  🔑 Генерация ключа через Argon2id...");
         let start = now_millis();
@@ -116,14 +118,14 @@ impl Database {
         // 2. Получаем соль для деривации
         let salt_bytes = salt_manager
             .get_salt()
-            .map_err(|e| StorageError::KeyError(e.to_string()))?;
+            .map_err(|e| StorageError::KeyError(format!("get salt: {}", e)))?;
 
         // Копируем соль в Zeroizing буфер для безопасной передачи в derive_key
         let mut salt = Salt::default();
         salt.copy_from_slice(salt_bytes);
 
         // 3. Деривируем ключ
-        let key = derive_key(password, &salt).map_err(|_| StorageError::KeyDerivationFailed)?;
+        let key = derive_key(password, &salt)?; // ✅ CryptoError::KeyDerivationFailed → StorageError::Crypto
 
         // Очищаем локальную копию соли сразу после деривации (она больше не нужна в стеке)
         salt.zeroize();
@@ -200,65 +202,6 @@ impl Database {
         tx.commit().map_err(StorageError::Database)?;
         println!("  📋 Таблицы инициализированы");
         Ok(())
-    }
-
-    pub fn save_message(&mut self, mut msg: Message) -> Result<u64, StorageError> {
-        if self.panicked {
-            return Err(StorageError::PanicButtonActivated);
-        }
-
-        let conn = self.conn.as_mut().ok_or(StorageError::NotOpen)?;
-        let tx = conn.transaction().map_err(StorageError::Database)?;
-
-        let hash = msg.hash();
-        let hash_hex = hex::encode(hash);
-
-        let plaintext = msg.content.clone().into_bytes();
-        let encrypted =
-            encrypt(&self.key, &plaintext).map_err(|_| StorageError::EncryptionFailed)?;
-        let blob = pack_for_storage(&encrypted);
-        let content_to_save = hex::encode(blob);
-
-        // Шаг 1: Вставляем сообщение
-        tx.execute(
-            "INSERT INTO messages (from_key, to_key, content, timestamp, is_read, merkle_hash)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![
-                msg.from_key,
-                msg.to_key,
-                content_to_save,
-                msg.timestamp,
-                msg.is_read as i32,
-                hash_hex
-            ],
-        )
-        .map_err(StorageError::Database)?;
-
-        let id = tx.last_insert_rowid() as u64;
-        msg.id = Some(id);
-
-        // ✅ Шаг 2: СНАЧАЛА добавляем лист в дерево
-        self.merkle.add_leaf(hash);
-
-        // ✅ Шаг 3: Теперь root и len соответствуют друг другу
-        let root = self
-            .merkle
-            .root()
-            .map(hex::encode)
-            .ok_or(StorageError::Crypto("Merkle tree empty".to_string()))?;
-
-        tx.execute(
-            "INSERT INTO merkle_roots (root_hash, msg_count, timestamp) VALUES (?1, ?2, ?3)",
-            params![root, self.merkle.len() as i64, now_secs()? as i64], // ← Без +1
-        )
-        .map_err(StorageError::Database)?;
-
-        // ✅ Шаг 4: Коммит
-        tx.commit().map_err(StorageError::Database)?;
-
-        // ✅ Коммит успешен — данные сохранены в БД
-        //    self.merkle уже обновлён (до коммита), всё синхронизировано
-        Ok(id)
     }
 
     pub fn get_messages(
@@ -354,8 +297,7 @@ impl Database {
         }
 
         // Шифруем мнемонику перед записью в БД
-        let encrypted =
-            encrypt(&self.key, mnemonic.as_bytes()).map_err(|_| StorageError::EncryptionFailed)?;
+        let encrypted = encrypt(&self.key, mnemonic.as_bytes())?;
         let blob = pack_for_storage(&encrypted);
         let mnemonic_hex = hex::encode(blob);
 
@@ -383,14 +325,13 @@ impl Database {
             let mnemonic_hex: String = row.get(1).map_err(StorageError::Database)?;
 
             // Расшифровываем мнемонику при чтении
-            let blob =
-                hex::decode(&mnemonic_hex).map_err(|e| StorageError::Crypto(e.to_string()))?;
-            let encrypted =
-                unpack_from_storage(&blob).map_err(|e| StorageError::Crypto(e.to_string()))?;
-            let plaintext =
-                decrypt(&self.key, &encrypted).map_err(|_| StorageError::EncryptionFailed)?;
-            let mnemonic =
-                String::from_utf8(plaintext).map_err(|e| StorageError::Crypto(e.to_string()))?;
+            let blob = hex::decode(&mnemonic_hex)
+                .map_err(|e| root_crypto::CryptoError::Other(format!("hex: {}", e)))?;
+            let encrypted = unpack_from_storage(&blob)
+                .map_err(|e| root_crypto::CryptoError::Other(format!("unpack: {}", e)))?;
+            let plaintext = decrypt(&self.key, &encrypted)?;
+            let mnemonic = String::from_utf8(plaintext)
+                .map_err(|e| root_crypto::CryptoError::Other(format!("utf8: {}", e)))?;
 
             Ok(Some((public_key, mnemonic)))
         } else {
@@ -411,12 +352,12 @@ impl Database {
             )
             .map_err(StorageError::Database)?;
         if count > 0 {
-            println!("  ⚠️  Имя '{}' уже занято", contact.nickname);
+            return Err(StorageError::DuplicateNickname(contact.nickname.clone()));
         }
 
         // Шифруем nickname — метаданные не должны быть видны в файле БД
-        let encrypted = encrypt(&self.key, contact.nickname.as_bytes())
-            .map_err(|_| StorageError::EncryptionFailed)?;
+        let encrypted = encrypt(&self.key, contact.nickname.as_bytes())?;
+
         let nickname_blob = hex::encode(pack_for_storage(&encrypted));
 
         self.conn()?.execute(
@@ -450,14 +391,17 @@ impl Database {
         rows.into_iter()
             .map(|(public_key, nickname_blob, added_at, reputation)| {
                 // Расшифровываем nickname
-                let blob =
-                    hex::decode(&nickname_blob).map_err(|e| StorageError::Crypto(e.to_string()))?;
-                let encrypted =
-                    unpack_from_storage(&blob).map_err(|e| StorageError::Crypto(e.to_string()))?;
-                let plaintext =
-                    decrypt(&self.key, &encrypted).map_err(|_| StorageError::EncryptionFailed)?;
+                let blob = hex::decode(&nickname_blob)
+                    .map_err(|e| root_crypto::CryptoError::Other(format!("hex contact: {}", e)))?;
+
+                let encrypted = unpack_from_storage(&blob)
+                    .map_err(|e| root_crypto::CryptoError::Other(format!("unpack: {}", e)))?;
+
+                let plaintext = decrypt(&self.key, &encrypted)?; // ✅
+
                 let nickname = String::from_utf8(plaintext)
-                    .map_err(|e| StorageError::Crypto(e.to_string()))?;
+                    .map_err(|e| root_crypto::CryptoError::Other(format!("utf8: {}", e)))?;
+
                 Ok(Contact {
                     public_key,
                     nickname,
@@ -483,13 +427,71 @@ impl Database {
 
         let mut verify_tree = MerkleTree::new();
         for hash_hex in &db_hashes {
-            let hash_bytes =
-                hex::decode(hash_hex).map_err(|e| StorageError::Crypto(e.to_string()))?;
+            let hash_bytes = hex::decode(hash_hex).map_err(|_| CryptoError::HexDecodeFailed)?;
             let mut hash = [0u8; 32];
             hash.copy_from_slice(&hash_bytes);
             verify_tree.add_leaf(hash);
         }
         Ok(verify_tree.root() == self.merkle.root())
+    }
+
+    pub fn save_message(&mut self, mut msg: Message) -> Result<u64, StorageError> {
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
+
+        let conn = self.conn.as_mut().ok_or(StorageError::NotOpen)?;
+        let tx = conn.transaction().map_err(StorageError::Database)?;
+
+        let hash = msg.hash();
+        let hash_hex = hex::encode(hash);
+
+        let plaintext = msg.content.clone().into_bytes();
+        let encrypted =
+            encrypt(&self.key, &plaintext)?;
+        let blob = pack_for_storage(&encrypted);
+        let content_to_save = hex::encode(blob);
+
+        // Шаг 1: Вставляем сообщение
+        tx.execute(
+            "INSERT INTO messages (from_key, to_key, content, timestamp, is_read, merkle_hash)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                msg.from_key,
+                msg.to_key,
+                content_to_save,
+                msg.timestamp,
+                msg.is_read as i32,
+                hash_hex
+            ],
+        )
+        .map_err(StorageError::Database)?;
+
+        let id = tx.last_insert_rowid() as u64;
+        msg.id = Some(id);
+
+        // ✅ Шаг 2: СНАЧАЛА добавляем лист в дерево
+        self.merkle.add_leaf(hash);
+
+        // ✅ Шаг 3: Теперь root и len соответствуют друг другу
+        let root = self
+            .merkle
+            .root()
+            .map(hex::encode)
+            .ok_or(StorageError::MerkleTreeEmpty)?; // ✅ Прямой вариант, без конвертации
+
+        tx.execute(
+            "INSERT INTO merkle_roots (root_hash, msg_count, timestamp) VALUES (?1, ?2, ?3)",
+            params![root, self.merkle.len() as i64, now_secs()? as i64], // ← Без +1
+        )
+        .map_err(StorageError::Database)?;
+
+        // ✅ Шаг 4: Коммит
+        tx.commit().map_err(StorageError::Database)?;
+
+        // ✅ Коммит успешен — данные сохранены в БД
+        //    self.merkle уже обновлён (до коммита), всё синхронизировано
+        Ok(id)
     }
 
     pub fn panic_destroy(&mut self) -> Result<(), StorageError> {

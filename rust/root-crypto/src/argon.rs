@@ -4,7 +4,8 @@
 
 use argon2::{Argon2, Algorithm, Version, Params};
 use zeroize::{Zeroize, Zeroizing};
-use crate::types::{CryptoError, SecureKey};
+use crate::types::SecureKey;
+use crate::CryptoError;           // ← берём из корневого ре-экспорта
 
 // ✅ Импорт констант (после настройки constants.rs)
 use crate::constants::ARGON2_PEPPER;

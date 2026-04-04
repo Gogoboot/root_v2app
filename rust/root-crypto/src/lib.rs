@@ -11,6 +11,11 @@ pub mod types;
 pub mod constants;
 
 
+// ✅ Экспортируем ошибку, чтобы другие крейты могли её использовать
+pub mod error;
+
+pub use error::CryptoError;
+
 pub use argon::{derive_key, wipe_password};
 pub use asymmetric::{
     AsymmetricError, Keypair, SharedSecret, SignedMessage,
@@ -19,7 +24,8 @@ pub use asymmetric::{
     sign_outgoing_message, verify_incoming_signature,
 };
 pub use symmetric::{decrypt, encrypt, pack_for_storage, unpack_from_storage};
-pub use types::{CryptoError, CryptoNonce, EncryptedBlob, Salt, SecureKey};
+pub use types::{CryptoNonce, EncryptedBlob, Salt, SecureKey};
+
 
 
 #[cfg(test)]

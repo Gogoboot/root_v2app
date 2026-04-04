@@ -3,6 +3,9 @@
 // ═══════════════════════════════════════════════════════════
 
 use thiserror::Error;
+use root_crypto::CryptoError;  // ← Импортируем!
+
+
 
 #[derive(Error, Debug)]
 pub enum StorageError {
@@ -18,21 +21,17 @@ pub enum StorageError {
     #[error("Контакт с именем {0} уже существует")]
     DuplicateNickname(String), 
     
-    #[error("Крипто ошибка: {0}")]
-    Crypto(String),
+    // ✅ ЗАМЕНЯЕМ строку Crypto(String) на типизированную ошибку:
+    #[error("Крипто: {0}")]
+    Crypto(#[from] CryptoError),  // ← Автоматическая конвертация!
     
-    #[error("Ошибка деривации ключа")]
-    KeyDerivationFailed,
-
     #[error("Ошибка управления ключами: {0}")]
     KeyError(String),
-
-    #[error("Ошибка шифрования")]
-    EncryptionFailed,
     
-    #[error("Ошибка расшифровки")]
-    DecryptionFailed,
-    
+    /// Дерево Merkle не содержит данных (ошибка инициализации/логики)
+    #[error("Merkle tree is empty — no data to verify")]
+    MerkleTreeEmpty,
+   
     #[error("Ошибка сериализации")]
     SerializationFailed,
     
