@@ -4,481 +4,201 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ROOT v2.0 — Desktop</title>
-    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #1a1a2e;
-            color: #eee;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        .screen { display: none; flex: 1; padding: 30px; overflow-y: auto; }
-        .screen.active { display: flex; flex-direction: column; gap: 16px; }
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
 
-        h1 { color: #00d9ff; font-size: 22px; }
-        h2 { color: #aaa; font-size: 16px; font-weight: 400; }
-
-        .card {
-            background: #16213e;
-            border: 1px solid #2a2a4a;
-            border-radius: 8px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .card h3 { color: #00d9ff; font-size: 14px; font-weight: 500; }
-
-        input, textarea {
-            width: 100%;
-            padding: 10px 12px;
-            border-radius: 6px;
-            border: 1px solid #2a2a4a;
-            background: #0f0f1a;
-            color: #eee;
-            font-size: 13px;
-        }
-        input:focus, textarea:focus {
-            outline: none;
-            border-color: #00d9ff;
-        }
-
-        .btn {
-            padding: 10px 18px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            transition: opacity 0.2s;
-        }
-        .btn:hover { opacity: 0.85; }
-        .btn-primary { background: #0d6efd; color: white; }
-        .btn-success { background: #198754; color: white; }
-        .btn-danger  { background: #842029; color: white; }
-        .btn-secondary { background: #2a2a4a; color: #aaa; }
-        .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
-
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-        .status-badge.active { background: #0f5132; color: #75b798; }
-        .status-badge.inactive { background: #2a1215; color: #ea868f; }
-
-        .dot { width: 8px; height: 8px; border-radius: 50%; }
-        .dot.green { background: #51cf66; }
-        .dot.red   { background: #ff6b6b; }
-
-        .mnemonic-box {
-            background: #0f0f1a;
-            border: 1px solid #198754;
-            border-radius: 6px;
-            padding: 14px;
-            font-family: monospace;
-            font-size: 13px;
-            color: #75b798;
-            line-height: 1.8;
-            word-break: break-all;
-        }
-
-        .pubkey-box {
-            background: #0f0f1a;
-            border: 1px solid #2a2a4a;
-            border-radius: 6px;
-            padding: 10px 14px;
-            font-family: monospace;
-            font-size: 11px;
-            color: #aaa;
-            word-break: break-all;
-        }
-
-        .msg-list { display: flex; flex-direction: column; gap: 8px; }
-        .msg-item {
-            background: #0f0f1a;
-            border: 1px solid #2a2a4a;
-            border-radius: 6px;
-            padding: 12px;
-            font-size: 13px;
-        }
-        .msg-item .from { color: #00d9ff; font-size: 11px; margin-bottom: 4px; }
-        .msg-item .content { color: #eee; }
-        .msg-item .time { color: #555; font-size: 11px; margin-top: 4px; }
-
-        #log {
-            background: #0a0a14;
-            border: 1px solid #2a2a4a;
-            border-radius: 6px;
-            padding: 12px;
-            max-height: 180px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 11px;
-        }
-        .log-info    { color: #00d9ff; }
-        .log-success { color: #51cf66; }
-        .log-error   { color: #ff6b6b; }
-        .log-entry   { margin: 2px 0; }
-
-        nav {
-            background: #0f0f1a;
-            border-top: 1px solid #2a2a4a;
-            display: flex;
-            padding: 8px 16px;
-            gap: 8px;
-        }
-        nav .nav-btn {
-            flex: 1;
-            padding: 8px;
-            border-radius: 6px;
-            border: none;
-            background: transparent;
-            color: #666;
-            cursor: pointer;
-            font-size: 12px;
-            transition: all 0.2s;
-        }
-        nav .nav-btn.active { background: #16213e; color: #00d9ff; }
-
-        .warning-box {
-            background: #2a1215;
-            border: 1px solid #842029;
-            border-radius: 6px;
-            padding: 14px;
-            font-size: 13px;
-            color: #ea868f;
-        }
-    </style>
+    <!-- Подключаем стили из отдельного файла -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<!-- ── Экран 1: Инициализация ── -->
+<!-- ── Экран 1: Инициализация ────────────────────────────── -->
 <div id="screen-init" class="screen active">
     <div>
         <h1>🔐 ROOT v2.0</h1>
         <h2>Децентрализованный мессенджер</h2>
     </div>
 
+    <!-- Новый аккаунт -->
     <div class="card">
         <h3>Новый аккаунт</h3>
-        <p style="font-size:13px;color:#888;">Генерировать новую идентичность и сохранить мнемонику</p>
-        <button class="btn btn-primary" onclick="generateIdentity()">Создать аккаунт</button>
+        <p style="font-size:13px;color:#888;">
+            Генерировать новую идентичность и сохранить мнемонику
+        </p>
+        <button class="btn btn-primary" onclick="generateIdentity()">
+            Создать аккаунт
+        </button>
+
+        <!-- Блок с мнемоникой — скрыт до создания аккаунта -->
         <div id="mnemonic-display" style="display:none;">
-            <p style="font-size:12px;color:#51cf66;margin-bottom:8px;">✅ Сохрани мнемонику — она показывается только один раз:</p>
+            <p style="font-size:12px;color:#51cf66;margin-bottom:8px;">
+                ✅ Сохрани мнемонику — она показывается только один раз:
+            </p>
             <div class="mnemonic-box" id="mnemonic-text"></div>
         </div>
     </div>
 
+    <!-- Восстановление аккаунта -->
     <div class="card">
         <h3>Восстановить аккаунт</h3>
-        <textarea id="restore-mnemonic" rows="3" placeholder="Введи 24 слова через пробел..."></textarea>
-        <button class="btn btn-secondary" onclick="restoreIdentity()">Восстановить</button>
+        <textarea
+            id="restore-mnemonic"
+            rows="3"
+            placeholder="Введи 24 слова через пробел...">
+        </textarea>
+        <button class="btn btn-secondary" onclick="restoreIdentity()">
+            Восстановить
+        </button>
     </div>
 
+    <!-- Открытие БД — используется всеми операциями выше -->
     <div class="card">
-        <h3>Открыть базу данных</h3>
-        <input type="text" id="db-path" placeholder="Путь к файлу БД (например: C:\root.db)">
-        <input type="password" id="db-password" placeholder="Пароль">
-        <button class="btn btn-success" onclick="unlockDatabase()">Открыть</button>
+        <h3>База данных</h3>
+        <p style="font-size:12px;color:#888;">
+            Укажи путь и пароль — используется при создании и восстановлении
+        </p>
+        <input
+            type="text"
+            id="db-path"
+            placeholder="Путь к файлу БД (например: C:\root.db)">
+        <input
+            type="password"
+            id="db-password"
+            placeholder="Пароль">
+        <button class="btn btn-success" onclick="unlockDatabase()">
+            Войти в существующий аккаунт
+        </button>
     </div>
 </div>
 
-<!-- ── Экран 2: P2P сеть ── -->
+<!-- ── Экран 2: P2P сеть ──────────────────────────────────── -->
 <div id="screen-p2p" class="screen">
     <div>
         <h1>P2P Сеть</h1>
         <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+            <!-- Бейдж статуса — меняется через refreshP2PStatus() -->
             <div id="p2p-badge" class="status-badge inactive">
                 <div class="dot red" id="p2p-dot"></div>
                 <span id="p2p-status-text">Остановлен</span>
             </div>
-            <span style="font-size:12px;color:#555;" id="peer-count-text">0 пиров</span>
+            <span style="font-size:12px;color:#555;" id="peer-count-text">
+                0 пиров
+            </span>
         </div>
     </div>
 
     <div class="card">
         <div class="btn-row">
-            <button class="btn btn-success" onclick="startP2P()">▶ Запустить</button>
-            <button class="btn btn-danger"  onclick="stopP2P()">⏹ Остановить</button>
+            <button class="btn btn-success"   onclick="startP2P()">▶ Запустить</button>
+            <button class="btn btn-danger"    onclick="stopP2P()">⏹ Остановить</button>
             <button class="btn btn-secondary" onclick="refreshP2PStatus()">↻ Обновить</button>
         </div>
     </div>
 
+    <!-- Публичный ключ -->
     <div class="card">
         <h3>Мой публичный ключ</h3>
         <div class="pubkey-box" id="my-pubkey">—</div>
-        <button class="btn btn-secondary" onclick="copyPubkey()" style="align-self:flex-start;">Скопировать</button>
+        <button
+            class="btn btn-secondary"
+            onclick="copyPubkey()"
+            style="align-self:flex-start;">
+            Скопировать
+        </button>
     </div>
 
+    <!-- Лог событий -->
     <div class="card">
         <h3>Лог событий</h3>
         <div id="log"></div>
     </div>
 </div>
 
-<!-- ── Экран 3: Сообщения ── -->
+<!-- ── Экран 3: Сообщения ─────────────────────────────────── -->
 <div id="screen-msg" class="screen">
     <h1>Сообщения</h1>
 
+    <!-- Форма отправки -->
     <div class="card">
         <h3>Отправить</h3>
-        <input type="text" id="to-key" placeholder="Публичный ключ получателя">
-        <textarea id="msg-content" rows="3" placeholder="Текст сообщения..."></textarea>
-        <button class="btn btn-primary" onclick="sendMessage()">Отправить</button>
+        <input
+            type="text"
+            id="to-key"
+            placeholder="Публичный ключ получателя (64 символа hex)">
+        <textarea
+            id="msg-content"
+            rows="3"
+            placeholder="Текст сообщения...">
+        </textarea>
+        <button class="btn btn-primary" onclick="sendMessage()">
+            Отправить
+        </button>
     </div>
 
+    <!-- Список входящих сообщений -->
     <div class="card">
         <h3>Входящие</h3>
-        <button class="btn btn-secondary" onclick="loadMessages()" style="align-self:flex-start;">↻ Обновить</button>
+        <button
+            class="btn btn-secondary"
+            onclick="loadMessages()"
+            style="align-self:flex-start;">
+            ↻ Обновить
+        </button>
         <div class="msg-list" id="msg-list">
             <p style="color:#555;font-size:13px;">Нет сообщений</p>
         </div>
     </div>
 </div>
 
-<!-- ── Экран 4: Настройки ── -->
+<!-- ── Экран 4: Настройки ─────────────────────────────────── -->
 <div id="screen-settings" class="screen">
     <h1>Настройки</h1>
 
+    <!-- Публичный ключ -->
     <div class="card">
         <h3>Идентичность</h3>
         <div class="pubkey-box" id="settings-pubkey">—</div>
     </div>
 
+    <!-- Версия -->
     <div class="card">
         <h3>Версия</h3>
         <p style="font-size:13px;color:#888;" id="version-text">—</p>
     </div>
 
+    <!-- Panic Button -->
     <div class="card">
         <h3 style="color:#ea868f;">Опасная зона</h3>
         <div class="warning-box">
             Panic Button уничтожит все данные безвозвратно.
             Файл БД будет перезаписан и удалён.
         </div>
-        <button class="btn btn-danger" onclick="panicButton()">💣 Panic Button</button>
+        <button class="btn btn-danger" onclick="panicButton()">
+            💣 Panic Button
+        </button>
     </div>
 </div>
 
-<!-- ── Навигация ── -->
+<!-- ── Навигация ──────────────────────────────────────────── -->
+<!-- Скрыта до входа в приложение -->
 <nav id="main-nav" style="display:none;">
-    <button class="nav-btn active" onclick="showScreen('p2p', this)">📡 Сеть</button>
-    <button class="nav-btn" onclick="showScreen('msg', this)">✉️ Чат</button>
-    <button class="nav-btn" onclick="showScreen('settings', this)">⚙️ Настройки</button>
+    <button class="nav-btn active" onclick="showScreen('p2p', this)">
+        📡 Сеть
+    </button>
+    <button class="nav-btn" onclick="showScreen('msg', this)">
+        ✉️ Чат
+    </button>
+    <button class="nav-btn" onclick="showScreen('settings', this)">
+        ⚙️ Настройки
+    </button>
 </nav>
 
-<script>
-const { invoke } = window.__TAURI__.core;
+<!-- ── JavaScript файлы ───────────────────────────────────── -->
+<!-- Порядок важен: main.js первый — он содержит общие функции -->
+<script src="js/main.js"></script>
+<script src="js/database.js"></script>
+<script src="js/identity.js"></script>
+<script src="js/p2p.js"></script>
+<script src="js/messaging.js"></script>
 
-// ── Навигация ────────────────────────────────────────────────
-
-function showScreen(name, btn) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-' + name).classList.add('active');
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-}
-
-function enterApp() {
-    document.getElementById('screen-init').classList.remove('active');
-    document.getElementById('main-nav').style.display = 'flex';
-    showScreen('p2p', document.querySelector('.nav-btn'));
-    loadPublicKey();
-    loadVersion();
-    startAutoRefresh();
-}
-
-// ── Identity ────────────────────────────────────────────────
-
-async function generateIdentity() {
-    try {
-        const info = await invoke('generate_identity');
-        if (info.mnemonic) {
-            document.getElementById('mnemonic-text').textContent = info.mnemonic;
-            document.getElementById('mnemonic-display').style.display = 'block';
-        }
-        log(`Аккаунт создан: ${info.public_key.slice(0,16)}...`, 'success');
-    } catch (e) {
-        log(`Ошибка: ${e}`, 'error');
-    }
-}
-
-async function restoreIdentity() {
-    const mnemonic = document.getElementById('restore-mnemonic').value.trim();
-    if (!mnemonic) { log('Введи мнемонику', 'error'); return; }
-    try {
-        const info = await invoke('restore_identity', { mnemonic });
-        log(`Аккаунт восстановлен: ${info.public_key.slice(0,16)}...`, 'success');
-    } catch (e) {
-        log(`Ошибка: ${e}`, 'error');
-    }
-}
-
-async function unlockDatabase() {
-    const path = document.getElementById('db-path').value.trim();
-    const password = document.getElementById('db-password').value;
-    if (!path || !password) { log('Укажи путь и пароль', 'error'); return; }
-    try {
-        await invoke('unlock_database', { password, dbPath: path });
-        log('База данных открыта', 'success');
-        enterApp();
-    } catch (e) {
-        log(`Ошибка: ${e}`, 'error');
-    }
-}
-
-async function loadPublicKey() {
-    try {
-        const key = await invoke('get_public_key');
-        document.getElementById('my-pubkey').textContent = key;
-        document.getElementById('settings-pubkey').textContent = key;
-    } catch (e) {}
-}
-
-// ── P2P ─────────────────────────────────────────────────────
-
-async function startP2P() {
-    try {
-        await invoke('start_p2p_node');
-        log('P2P узел запущен', 'success');
-        refreshP2PStatus();
-    } catch (e) {
-        log(`Ошибка: ${e}`, 'error');
-    }
-}
-
-async function stopP2P() {
-    try {
-        await invoke('stop_p2p_node');
-        log('P2P узел остановлен', 'info');
-        refreshP2PStatus();
-    } catch (e) {
-        log(`Ошибка: ${e}`, 'error');
-    }
-}
-
-async function refreshP2PStatus() {
-    try {
-        const running = await invoke('get_p2p_status');
-        const count   = await invoke('get_peer_count');
-        const badge   = document.getElementById('p2p-badge');
-        const dot     = document.getElementById('p2p-dot');
-        const text    = document.getElementById('p2p-status-text');
-        const peers   = document.getElementById('peer-count-text');
-
-        if (running) {
-            badge.className = 'status-badge active';
-            dot.className   = 'dot green';
-            text.textContent = 'Активен';
-        } else {
-            badge.className = 'status-badge inactive';
-            dot.className   = 'dot red';
-            text.textContent = 'Остановлен';
-        }
-        peers.textContent = `${count} ${peerWord(count)}`;
-    } catch (e) {}
-}
-
-function peerWord(n) {
-    if (n % 10 === 1 && n % 100 !== 11) return 'пир';
-    if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'пира';
-    return 'пиров';
-}
-
-function copyPubkey() {
-    const key = document.getElementById('my-pubkey').textContent;
-    navigator.clipboard.writeText(key);
-    log('Ключ скопирован', 'info');
-}
-
-// ── Messaging ────────────────────────────────────────────────
-
-async function sendMessage() {
-    const toKey  = document.getElementById('to-key').value.trim();
-    const content = document.getElementById('msg-content').value.trim();
-    if (!toKey || !content) { log('Заполни ключ и текст', 'error'); return; }
-    try {
-        const id = await invoke('send_message', { toKey, content });
-        log(`Сообщение #${id} отправлено`, 'success');
-        document.getElementById('msg-content').value = '';
-    } catch (e) {
-        log(`Ошибка: ${e}`, 'error');
-    }
-}
-
-async function loadMessages() {
-    try {
-        const msgs = await invoke('get_incoming_messages');
-        const list = document.getElementById('msg-list');
-        if (msgs.length === 0) {
-            list.innerHTML = '<p style="color:#555;font-size:13px;">Нет новых сообщений</p>';
-            return;
-        }
-        list.innerHTML = msgs.map(m => `
-            <div class="msg-item">
-                <div class="from">${m.from_key.slice(0,24)}...</div>
-                <div class="content">${m.content}</div>
-                <div class="time">${new Date(m.timestamp * 1000).toLocaleString()}</div>
-            </div>
-        `).join('');
-    } catch (e) {
-        log(`Ошибка: ${e}`, 'error');
-    }
-}
-
-// ── Settings ────────────────────────────────────────────────
-
-async function panicButton() {
-    if (!confirm('Уничтожить все данные? Это необратимо.')) return;
-    try {
-        await invoke('panic_button');
-    } catch (e) {
-        // Panic всегда возвращает ошибку — это нормально
-        log('Данные уничтожены. Перезапусти приложение.', 'error');
-        document.getElementById('main-nav').style.display = 'none';
-        showScreen('init', null);
-        document.getElementById('screen-init').classList.add('active');
-    }
-}
-
-async function loadVersion() {
-    try {
-        const v = await invoke('get_version');
-        document.getElementById('version-text').textContent = v;
-    } catch (e) {}
-}
-
-// ── Лог ─────────────────────────────────────────────────────
-
-function log(msg, type = 'info') {
-    const div = document.getElementById('log');
-    if (!div) return;
-    const entry = document.createElement('div');
-    entry.className = `log-entry log-${type}`;
-    entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-    div.appendChild(entry);
-    div.scrollTop = div.scrollHeight;
-}
-
-// ── Автообновление ───────────────────────────────────────────
-
-function startAutoRefresh() {
-    setInterval(refreshP2PStatus, 3000);
-    setInterval(loadMessages, 5000);
-}
-
-// ── Старт ────────────────────────────────────────────────────
-
-window.addEventListener('DOMContentLoaded', () => {
-    log('ROOT Desktop готов', 'success');
-});
-</script>
 </body>
 </html>
