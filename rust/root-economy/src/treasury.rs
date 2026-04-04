@@ -12,6 +12,7 @@ use super::constants::{
 };
 use super::types::EconomyError;
 
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Treasury {
     pub balance_drops: u64,
@@ -70,7 +71,7 @@ impl Treasury {
     pub fn withdraw(&mut self, amount: u64, total_supply: u64) -> Result<(), EconomyError> {
         let min_reserve = (total_supply as f64 * TREASURY_MIN_RESERVE_PCT) as u64;
         if self.balance_drops < min_reserve + amount {
-            return Err(EconomyError::TreasuryReserveLocked);
+            return Err(EconomyError::TreasuryLocked);
         }
         self.balance_drops -= amount;
         self.total_paid_drops += amount;

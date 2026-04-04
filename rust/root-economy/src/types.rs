@@ -6,56 +6,57 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
-use thiserror::Error;
+
+pub use super::error::EconomyError;
 
 use super::constants::DROPS_PER_SAP;
 
 // ── Ошибки экономики ─────────────────────────────────────────
 
-#[derive(Error, Debug)]
-pub enum EconomyError {
-    #[error("Недостаточно средств: нужно {need} Drops, есть {have} Drops")]
-    InsufficientFunds { need: u64, have: u64 },
+// #[derive(Error, Debug)]
+// pub enum EconomyError {
+//     #[error("Недостаточно средств: нужно {need} Drops, есть {have} Drops")]
+//     InsufficientFunds { need: u64, have: u64 },
 
-    #[error("Превышен Hard Cap: эмиссия {current}, лимит {cap}")]
-    HardCapExceeded { current: u64, cap: u64 },
+//     #[error("Превышен Hard Cap: эмиссия {current}, лимит {cap}")]
+//     HardCapExceeded { current: u64, cap: u64 },
 
-    #[error("Недостаточный залог: нужно {need} Drops")]
-    InsufficientStake { need: u64 },
+//     #[error("Недостаточный залог: нужно {need} Drops")]
+//     InsufficientStake { need: u64 },
 
-    #[error("Узел не найден: {0}")]
-    NodeNotFound(String),
+//     #[error("Узел не найден: {0}")]
+//     NodeNotFound(String),
 
-    #[error("Превышен лимит транзакций: максимум {max}/сек")]
-    RateLimitExceeded { max: u32 },
+//     #[error("Превышен лимит транзакций: максимум {max}/сек")]
+//     RateLimitExceeded { max: u32 },
 
-    #[error("Неверная транзакция: {0}")]
-    InvalidTransaction(String),
+//     #[error("Неверная транзакция: {0}")]
+//     InvalidTransaction(String),
 
-    #[error("Treasury заблокирован: баланс ниже минимального резерва")]
-    TreasuryReserveLocked,
+//     #[error("Treasury заблокирован: баланс ниже минимального резерва")]
+//     TreasuryReserveLocked,
 
-    #[error("Узел забанен за систематические нарушения")]
-    NodeBanned,
+//     #[error("Узел забанен за систематические нарушения")]
+//     NodeBanned,
 
-    #[error("Genesis период завершён: все {0} мест заняты")]
-    GenesisEnded(u32),
+//     #[error("Genesis период завершён: все {0} мест заняты")]
+//     GenesisEnded(u32),
 
-    #[error("Velocity Limit: превышен дневной лимит продаж {limit} SAP")]
-    VelocityLimitExceeded { limit: u64 },
+//     #[error("Velocity Limit: превышен дневной лимит продаж {limit} SAP")]
+//     VelocityLimitExceeded { limit: u64 },
 
-    #[error("Vesting: токены ещё не разблокированы. Доступно: {available} Drops")]
-    VestingLocked { available: u64 },
+//     #[error("Vesting: токены ещё не разблокированы. Доступно: {available} Drops")]
+//     VestingLocked { available: u64 },
 
-    #[error("P2P торговля требует репутацию >= {required}, у вас {have}")]
-    InsufficientReputation { required: u8, have: u8 },
+//     #[error("P2P торговля требует репутацию >= {required}, у вас {have}")]
+//     InsufficientReputation { required: u8, have: u8 },
 
-    #[error("Аккаунт заморожен до {until_timestamp} (аномальная активность)")]
-    AccountFrozen { until_timestamp: u64 },
+//     #[error("Аккаунт заморожен до {until_timestamp} (аномальная активность)")]
+//     AccountFrozen { until_timestamp: u64 },
 
-    #[error("Proof of Personhood: превышен лимит Genesis бонусов для этого устройства")]
-    PersonhoodViolation,
-}
+//     #[error("Proof of Personhood: превышен лимит Genesis бонусов для этого устройства")]
+//     PersonhoodViolation,
+// }
 
 // ── Транзакция ───────────────────────────────────────────────
 

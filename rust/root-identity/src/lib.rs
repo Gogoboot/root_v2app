@@ -8,6 +8,10 @@ pub mod keys;
 pub mod protected;
 pub mod seed;
 pub mod shamir;
+pub mod error;  // ← новый модуль
+
+
+pub use error::IdentityError;
 
 pub use keys::Identity;
 pub use protected::ProtectedKey;

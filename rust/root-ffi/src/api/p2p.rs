@@ -11,7 +11,6 @@ use root_core::state::IncomingMessage;  // ✅ Правильный тип из 
 use log::{info, error};
 use root_network::{P2pOutMessage, generate_topic_id};  // ← Оба импорта!
 
-
 pub fn start_p2p_node() -> Result<String, ApiError> {
     require_state!(root_core::state::AppPhase::Ready);
     let key_bytes: [u8; 32] = {

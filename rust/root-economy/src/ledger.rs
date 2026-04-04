@@ -132,8 +132,8 @@ impl Ledger {
         let balance = self.get_or_create(from).balance_drops;
         if balance < total {
             return Err(EconomyError::InsufficientFunds {
-                need: total,
-                have: balance,
+                required: total,
+                available: balance,
             });
         }
 
@@ -187,7 +187,7 @@ impl Ledger {
         if reputation < MIN_REPUTATION_FOR_P2P {
             return Err(EconomyError::InsufficientReputation {
                 required: MIN_REPUTATION_FOR_P2P,
-                have: reputation,
+                available: reputation,
             });
         }
 
@@ -219,8 +219,8 @@ impl Ledger {
         let balance = self.get_or_create(from).balance_drops;
         if balance < total_needed {
             return Err(EconomyError::InsufficientFunds {
-                need: total_needed,
-                have: balance,
+                required: total_needed,
+                available: balance,
             });
         }
 
@@ -275,7 +275,7 @@ impl Ledger {
         let balance = self.get_or_create(key).balance_drops;
         if balance < MIN_STAKE_DROPS {
             return Err(EconomyError::InsufficientStake {
-                need: MIN_STAKE_DROPS,
+                required: MIN_STAKE_DROPS,
             });
         }
         let acc = self.accounts.get_mut(key).unwrap();
@@ -316,7 +316,7 @@ impl Ledger {
             .unwrap_or(false)
         {
             return Err(EconomyError::InsufficientStake {
-                need: MIN_STAKE_DROPS,
+                required: MIN_STAKE_DROPS,
             });
         }
 
@@ -325,7 +325,7 @@ impl Ledger {
         let multiplier = self.treasury.reward_multiplier(self.total_supply_drops);
         let reward = (base as f64 * multiplier) as u64;
         if reward == 0 {
-            return Err(EconomyError::TreasuryReserveLocked);
+            return Err(EconomyError::TreasuryLocked);
         }
 
         let cfg = witness_config_for_reward(reward);
