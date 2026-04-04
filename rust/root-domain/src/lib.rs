@@ -1,30 +1,41 @@
-// root-domain/src/lib.rs
-// Конституция проекта ROOT.
-// Зависимости: только std + thiserror + serde.
-// Никаких tokio, libp2p, rusqlite, root-crypto, root-storage.
-// ============================================================
+//! Доменный слой RooT Messenger — «конституция проекта».
+//!
+//! Этот крейт содержит:
+//! - **Сущности** — [`Message`], [`Contact`], [`Account`] и их идентификаторы
+//! - **Ошибки** — [`DomainError`], единый язык ошибок для всех слоёв
+//! - **Порты** — [`StoragePort`], абстракция над хранилищем
+//!
+//! # Главное правило
+//!
+//! `root-domain` не зависит ни от одного другого крейта проекта.
+//! Только `std` + `thiserror` + `serde`.
+//!
+//! ```text
+//! root-ffi
+//!   └── root-domain  ← все знают его
+//!   └── root-storage ← реализует StoragePort
+//!   └── root-crypto  ← реализует CryptoPort (будущее)
+//! ```
+//!
+//! Если завтра заменить SQLite на RocksDB — `root-domain` не трогаем.
+//! Если добавить web-интерфейс — `root-domain` не трогаем.
 
 pub mod entities;
 pub mod error;
 pub mod ports;
 
-// Удобный реэкспорт для крейтов-потребителей
+// ─── Реэкспорт ───────────────────────────────────────────────────────────────
+// Крейты-потребители пишут:
+//   use root_domain::Message;
+// вместо:
+//   use root_domain::entities::message::Message;
+
 pub use error::DomainError;
-pub use entities::{Account, AccountId, Contact, ContactId, Message, MessageId};
+
+pub use entities::{
+    Account, AccountId,
+    Contact, ContactId,
+    Message, MessageId,
+};
+
 pub use ports::StoragePort;
-
-
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}

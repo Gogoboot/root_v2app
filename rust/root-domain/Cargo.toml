@@ -1,8 +1,25 @@
+# root-domain/Cargo.toml
+
 [package]
-name = "root-domain"
+# Имя крейта — именно так он будет называться при импорте:
+# use root_domain::DomainError;
+name    = "root-domain"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
+# { workspace = true } означает: версию берём из корневого Cargo.toml
+# из секции [workspace.dependencies] — это то что сделали в S6-F2.
+# Здесь мы только говорим "нам нужен этот крейт", версию не повторяем.
+
+# thiserror нужен для макроса #[derive(Error)] в error.rs
 thiserror = { workspace = true }
+
+# serde нужен для #[derive(Serialize, Deserialize)] в сущностях
 serde     = { workspace = true }
+
+# БОЛЬШЕ НИЧЕГО.
+# Никакого tokio  — domain не знает про async runtime
+# Никакого rusqlite — domain не знает про SQLite
+# Никакого libp2p  — domain не знает про сеть
+# Никакого root-storage, root-crypto, root-network — нет зависимостей внутри проекта
