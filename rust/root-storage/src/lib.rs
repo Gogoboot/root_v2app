@@ -11,6 +11,7 @@ pub mod key;
 pub mod merkle;
 pub mod models;
 pub mod panic;
+pub mod ports;
 
 pub use constants::*;
 pub use database::Database;

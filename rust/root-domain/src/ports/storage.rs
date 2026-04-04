@@ -6,7 +6,7 @@
 use crate::entities::{Account, Contact, Message};
 use crate::error::DomainError;
 
-pub trait StoragePort: Send + Sync {
+pub trait StoragePort: Send {
     // ─── Сообщения ────────────────────────────────────────
     fn save_message(&self, msg: &Message) -> Result<(), DomainError>;
     fn get_messages(

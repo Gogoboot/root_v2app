@@ -58,6 +58,37 @@ pub struct Contact {
     pub reputation: u8,
 }
 
+// ─── Конвертация между storage и domain моделями ─────────────
+
+use root_domain::entities::{
+    Contact as DomainContact,
+    Message as DomainMessage,
+};
+
+impl From<Message> for DomainMessage {
+    fn from(m: Message) -> Self {
+        DomainMessage {
+            id: m.id.map(|id| id.to_string()),
+            from_key: m.from_key,
+            to_key: m.to_key,
+            content: m.content,
+            timestamp: m.timestamp,
+            is_read: m.is_read,
+        }
+    }
+}
+
+impl From<Contact> for DomainContact {
+    fn from(c: Contact) -> Self {
+        DomainContact {
+            public_key: c.public_key,
+            nickname: c.nickname,
+            added_at: c.added_at,
+            reputation: c.reputation,
+        }
+    }
+}
+
 // fn now_secs() -> u64 {
 //     SystemTime::now()
 //         .duration_since(UNIX_EPOCH)
