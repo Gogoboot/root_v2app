@@ -33,6 +33,19 @@ pub fn generate_identity() -> Result<IdentityInfo, ApiError> {
     let mut state = APP_STATE.lock()
         .map_err(|_| ApiError::InternalError("mutex poisoned".into()))?;
 
+    // ─── Проверка: аккаунт уже существует ────────────────────────────────
+    // Если identity уже есть в БД — запрещаем создавать новую.
+    // Иначе старая мнемоника будет перезаписана и старые сообщения
+    // станут нечитаемы (они зашифрованы старым ключом).
+    if let Some(db) = state.database.as_ref() {
+        if let Ok(Some(_)) = db.load_identity() {
+            return Err(ApiError::InvalidInput(
+                "Аккаунт уже существует. Используй восстановление из мнемоники.".into()
+            ));
+        }
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     state.identity = Some(identity);
     state.ledger = Some(ledger);
 
