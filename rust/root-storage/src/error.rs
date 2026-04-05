@@ -45,6 +45,13 @@ pub enum StorageError {
     #[error("Panic Button активирован — данные уничтожены")]
     PanicButtonActivated,
 
+    /// Неверный пароль — sentinel запись не расшифровалась.
+    ///
+    /// Возникает при попытке открыть БД с неверным паролем.
+    /// Данные не повреждены — можно попробовать снова с правильным паролем.
+    #[error("Неверный пароль")]
+    WrongPassword,
+
     // ─── Операции с данными ──────────────────────────────────────────────
 
     /// Сообщение с указанным числовым ID не найдено в БД.
@@ -148,6 +155,7 @@ impl StorageError {
             StorageError::MessageNotFound(_)       => "storage.not_found",
             StorageError::DuplicateNickname(_)     => "storage.duplicate",
             StorageError::Database(_)              => "storage.db_error",
+            StorageError::WrongPassword            => "storage.wrong_password",
             // Делегируем код в CryptoError — он сам знает свой код
             StorageError::Crypto(e)                => e.code(),
             StorageError::KeyError(_)              => "storage.key_error",

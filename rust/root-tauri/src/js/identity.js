@@ -32,7 +32,16 @@ window.generateIdentity = async function() {
 }
 
 // Вызывается когда пользователь нажал "Я сохранил"
-window.closeMnemonicAndEnter = function() {
+window.closeMnemonicAndEnter = async function() {
+    const invoke = window.__TAURI__.core.invoke;
     document.getElementById('mnemonic-display').style.display = 'none';
     window.enterApp();
+    // Потом загружаем ключ — элементы уже существуют в DOM
+    try {
+        const key = await invoke('get_public_key');
+        document.getElementById('my-pubkey').textContent = key;
+        document.getElementById('settings-pubkey').textContent = key;
+    } catch (e) {
+        console.log('Ключ будет загружен после входа');
+    }
 }

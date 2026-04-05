@@ -154,6 +154,43 @@ impl Database {
         // Примечание: Сама БД теперь содержит только зашифрованные данные, SQLCipher не нужен.
         let conn = Connection::open(path).map_err(StorageError::Database)?;
 
+        // Проверяем sentinel — контрольная запись для верификации пароля.
+        // Если таблица существует и sentinel не расшифровывается — пароль неверный.
+        // Если таблицы нет — это первый запуск, initialize() создаст её позже.
+        let sentinel_exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sentinel'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|count| count > 0)
+            .unwrap_or(false);
+
+        if sentinel_exists {
+            // Читаем зашифрованную контрольную запись
+            let sentinel_result: rusqlite::Result<String> = conn.query_row(
+                "SELECT value FROM sentinel WHERE id = 1",
+                [],
+                |row| row.get(0),
+            );
+
+            if let Ok(blob_hex) = sentinel_result {
+                // Пытаемся расшифровать — если не удалось, пароль неверный
+                let blob = hex::decode(&blob_hex)
+                    .map_err(|_| StorageError::WrongPassword)?;
+                let encrypted = unpack_from_storage(&blob)
+                    .map_err(|_| StorageError::WrongPassword)?;
+                let plaintext = decrypt(&key, &encrypted)
+                    .map_err(|_| StorageError::WrongPassword)?;
+
+                // Сравниваем с контрольным словом
+                if plaintext != b"ROOT_OK" {
+                    return Err(StorageError::WrongPassword);
+                }
+                println!("  ✅ Пароль верный");
+            }
+        }
+
         let merkle = Self::load_merkle_tree(&conn)?;
 
         Ok(Database {
@@ -207,6 +244,10 @@ impl Database {
                 mnemonic TEXT NOT NULL,
                 created_at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS sentinel (
+                id INTEGER PRIMARY KEY,
+                value TEXT NOT NULL
+            );
 
             -- ✅ Уникальный индекс на nickname
             CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_nickname ON contacts(nickname);
@@ -215,8 +256,27 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_messages_from ON messages(from_key, timestamp);",
         )
         .map_err(StorageError::Database)?;
-
+        
         tx.commit().map_err(StorageError::Database)?;
+
+                // Записываем sentinel только если таблица пустая (первый запуск)
+        let conn = self.conn.as_mut().ok_or(StorageError::NotOpen)?;
+        let sentinel_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM sentinel", [], |row| row.get(0))
+            .map_err(StorageError::Database)?;
+
+        if sentinel_count == 0 {
+            // Шифруем контрольное слово текущим ключом
+            let encrypted = encrypt(&self.key, b"ROOT_OK")?;
+            let blob = hex::encode(pack_for_storage(&encrypted));
+            conn.execute(
+                "INSERT INTO sentinel (id, value) VALUES (1, ?1)",
+                params![blob],
+            )
+            .map_err(StorageError::Database)?;
+            println!("  🔐 Sentinel запись создана");
+        }
+
         println!("  📋 Таблицы инициализированы");
         Ok(())
     }
