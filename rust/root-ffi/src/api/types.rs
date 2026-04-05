@@ -105,48 +105,67 @@ impl From<IdentityError> for ApiError {
 
 // ─── DTO структуры ───────────────────────────────────────────────────────────
 
+// /// Информация об идентичности для передачи во Flutter/Tauri.
+// ///
+// /// # Безопасность
+// ///
+// /// Поле `mnemonic` содержит чувствительные данные.
+// /// [`Zeroizing`] гарантирует что байты мнемоники
+// /// будут обнулены в памяти когда структура освобождается.
+// ///
+// /// Flutter получает мнемонику **один раз** при генерации —
+// /// после этого она нигде не хранится в открытом виде.
+// #[derive(Debug, Clone, serde::Serialize)]
+// pub struct IdentityInfo {
+//     /// Публичный ключ Ed25519 в hex-формате (64 символа).
+//     pub public_key: String,
+
+//     /// 24 слова мнемоники — только при генерации нового аккаунта.
+//     ///
+//     /// `None` при восстановлении из существующей мнемоники.
+//     /// Автоматически обнуляется при освобождении памяти.
+//     #[serde(serialize_with = "serialize_zeroizing_option")]
+//     pub mnemonic: Option<Zeroizing<String>>,
+
+//     /// Идентификатор сети: `"root-mainnet-v2"`.
+//     pub network: String,
+// }
+//*******
 /// Информация об идентичности для передачи во Flutter/Tauri.
 ///
-/// # Безопасность
-///
-/// Поле `mnemonic` содержит чувствительные данные.
-/// [`Zeroizing`] гарантирует что байты мнемоники
-/// будут обнулены в памяти когда структура освобождается.
-///
-/// Flutter получает мнемонику **один раз** при генерации —
-/// после этого она нигде не хранится в открытом виде.
-#[derive(Debug, Clone, serde::Serialize)]
+/// Мнемоника здесь обычная String — Zeroizing убирается намеренно
+/// потому что Tauri не умеет сериализовать Zeroizing<String>.
+/// Мнемоника живёт в этой структуре очень короткое время —
+/// только пока передаётся в JS, потом JS её показывает и забывает.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IdentityInfo {
     /// Публичный ключ Ed25519 в hex-формате (64 символа).
     pub public_key: String,
 
     /// 24 слова мнемоники — только при генерации нового аккаунта.
-    ///
-    /// `None` при восстановлении из существующей мнемоники.
-    /// Автоматически обнуляется при освобождении памяти.
-    #[serde(serialize_with = "serialize_zeroizing_option")]
-    pub mnemonic: Option<Zeroizing<String>>,
+    /// `None` при восстановлении.
+    pub mnemonic: Option<String>,
 
     /// Идентификатор сети: `"root-mainnet-v2"`.
     pub network: String,
 }
-
-/// Сериализует `Option<Zeroizing<String>>` в JSON.
-///
-/// Нужен потому что `serde` не умеет сериализовать [`Zeroizing`]
-/// автоматически — требуется явный `serialize_with`.
-fn serialize_zeroizing_option<S>(
-    value: &Option<Zeroizing<String>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    match value {
-        Some(s) => serializer.serialize_some(s.as_str()),
-        None    => serializer.serialize_none(),
-    }
-}
+//****** */
+// /// Сериализует `Option<Zeroizing<String>>` в JSON.
+// ///
+// /// Нужен потому что `serde` не умеет сериализовать [`Zeroizing`]
+// /// автоматически — требуется явный `serialize_with`.
+// fn serialize_zeroizing_option<S>(
+//     value: &Option<Zeroizing<String>>,
+//     serializer: S,
+// ) -> Result<S::Ok, S::Error>
+// where
+//     S: serde::Serializer,
+// {
+//     match value {
+//         Some(s) => serializer.serialize_some(s.as_str()),
+//         None    => serializer.serialize_none(),
+//     }
+// }
 
 /// Баланс пользователя для экрана кошелька.
 #[derive(Debug, Clone, serde::Serialize)]

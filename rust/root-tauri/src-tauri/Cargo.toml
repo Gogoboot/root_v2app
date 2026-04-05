@@ -7,18 +7,19 @@ edition = "2021"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+# 🔑 Добавлен feature "path" для работы с директориями приложения
 tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2" 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 log = "0.4"
 env_logger = "0.10"
 
-# ✅ Наши крейты: имя = { package = "точное-имя-из-cargo", path = "..." }
+# 📦 Локальные крейты
 root_ffi = { package = "root_ffi", path = "../../root-ffi" }
 root_core = { package = "root-core", path = "../../root-core" }
 
-# 🔧 Изоляция от родительского workspace
+# 🧹 Изоляция от родительского workspace (оставляем пустым)
 [workspace]
 
-# 🔧 Метаданные для tauri-build
 [package.metadata.tauri]

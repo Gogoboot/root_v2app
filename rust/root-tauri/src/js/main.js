@@ -1,136 +1,105 @@
-// ============================================================
-// ROOT v2.0 — main.js
-// Инициализация приложения, навигация, лог событий
-// ============================================================
+// Импорт Tauri API (Стандарт для v2)
+//import { invoke } from '@tauri-apps/api/core';
 
-// Tauri API — функция для вызова Rust команд
-const { invoke } = window.__TAURI__.core;
+// Глобальные переменные для таймеров (чтобы можно было их остановить)
+let p2pInterval, msgInterval;
 
-// ── Навигация ─────────────────────────────────────────────────────────────────
+// ==========================================
+// ЛОГИРОВАНИЕ
+// ==========================================
+function log(msg, type = 'info') {
+    // 1. Лог в основном окне (P2P экран)
+    const div = document.getElementById('log');
+    if (div) {
+        const entry = document.createElement('div');
+        entry.className = `log-entry log-${type}`;
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        div.appendChild(entry);
+        div.scrollTop = div.scrollHeight; // Автоскролл вниз
+    }
 
-/**
- * Переключает активный экран.
- * @param {string} name - имя экрана ('p2p', 'msg', 'settings')
- * @param {HTMLElement} btn - кнопка навигации которую нажали
- */
-function showScreen(name, btn) {
-    // Скрываем все экраны
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-
-    // Показываем нужный экран
-    document.getElementById('screen-' + name).classList.add('active');
-
-    // Убираем активный класс со всех кнопок навигации
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-
-    // Помечаем нажатую кнопку как активную
-    if (btn) btn.classList.add('active');
+    // 2. Лог на экране входа (init-log)
+    const initLog = document.getElementById('init-log');
+    if (initLog) {
+        const colors = { info: '#00d9ff', success: '#51cf66', error: '#ff6b6b' };
+        initLog.style.color = colors[type] || '#eee';
+        initLog.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    }
 }
 
-/**
- * Переходим в основной интерфейс после успешного входа.
- * Показывает навигацию и загружает начальные данные.
- */
-function enterApp() {
-    // Скрываем экран инициализации
+// Делаем log доступным глобально для других файлов
+window.log = log;
+
+// ==========================================
+// НАВИГАЦИЯ
+// ==========================================
+// Переключает вкладки внутри приложения (Сеть / Чат / Настройки)
+function showTab(tabName, btnElement) {
+    // Скрываем все вкладки
+    document.querySelectorAll('.tab').forEach(el => el.style.display = 'none');
+    // Показываем нужную
+    const targetTab = document.getElementById('tab-' + tabName);
+    if (targetTab) targetTab.style.display = 'block';
+
+    // Обновляем кнопки
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    if (btnElement) btnElement.classList.add('active');
+}
+
+// Переход от Экрана Входа к Экрану Приложения
+window.enterApp = function() {
     document.getElementById('screen-init').classList.remove('active');
-
-    // Показываем навигацию внизу
+    document.getElementById('screen-app').classList.add('active');
     document.getElementById('main-nav').style.display = 'flex';
-
-    // Открываем экран P2P по умолчанию
-    showScreen('p2p', document.querySelector('.nav-btn'));
-
-    // Загружаем публичный ключ и версию
+    
+    // Загружаем начальные данные
     loadPublicKey();
     loadVersion();
-
-    // Запускаем автообновление статуса P2P и сообщений
+    
+    // Запускаем фоновое обновление
     startAutoRefresh();
 }
 
-// ── Публичный ключ ────────────────────────────────────────────────────────────
-
-/**
- * Загружает публичный ключ из Rust и показывает на экранах P2P и Настройки.
- */
+// ==========================================
+// ЗАГРУЗКА ДАННЫХ
+// ==========================================
 async function loadPublicKey() {
+    const invoke = window.__TAURI__.core.invoke;
     try {
         const key = await invoke('get_public_key');
-
-        // Показываем ключ в двух местах
-        document.getElementById('my-pubkey').textContent      = key;
+        document.getElementById('my-pubkey').textContent = key;
         document.getElementById('settings-pubkey').textContent = key;
     } catch (e) {
-        // Ключ может быть недоступен если identity не создана — это нормально
-        log('Публичный ключ недоступен', 'error');
+        // Если ключа нет (аккаунт не создан), это нормально
+        console.log("Ключ еще не создан");
     }
 }
 
-/**
- * Копирует публичный ключ в буфер обмена.
- */
-function copyPubkey() {
-    const key = document.getElementById('my-pubkey').textContent;
-    navigator.clipboard.writeText(key);
-    log('Ключ скопирован в буфер обмена', 'info');
-}
-
-// ── Версия ────────────────────────────────────────────────────────────────────
-
-/**
- * Загружает версию приложения из Rust.
- */
 async function loadVersion() {
+    const invoke = window.__TAURI__.core.invoke;
     try {
         const v = await invoke('get_version');
-        document.getElementById('version-text').textContent = v;
-    } catch (e) {
-        document.getElementById('version-text').textContent = 'Недоступно';
+        document.getElementById('version-text').textContent = "Версия: " + v;
+    } catch (e) {}
+}
+
+window.copyPubkey = function() {
+    const key = document.getElementById('my-pubkey').textContent;
+    if(key && key !== 'Загрузка...') {
+        navigator.clipboard.writeText(key);
+        log('Ключ скопирован', 'success');
     }
 }
 
-// ── Лог событий ──────────────────────────────────────────────────────────────
-
-/**
- * Добавляет запись в лог событий на экране P2P.
- *
- * @param {string} msg  - текст сообщения
- * @param {string} type - тип: 'info' | 'success' | 'error'
- */
-function log(msg, type = 'info') {
-    const div = document.getElementById('log');
-    if (!div) return;
-
-    // Создаём строку лога с временной меткой
-    const entry = document.createElement('div');
-    entry.className = `log-entry log-${type}`;
-    entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-
-    // Добавляем в конец лога
-    div.appendChild(entry);
-
-    // Прокручиваем вниз чтобы видеть последнее сообщение
-    div.scrollTop = div.scrollHeight;
-}
-
-// ── Автообновление ────────────────────────────────────────────────────────────
-
-/**
- * Запускает периодическое обновление статуса P2P и входящих сообщений.
- * Вызывается один раз после входа в приложение.
- */
+// ==========================================
+// ФОНОВОЕ ОБНОВЛЕНИЕ
+// ==========================================
 function startAutoRefresh() {
-    // Обновляем статус P2P каждые 3 секунды
-    setInterval(refreshP2PStatus, 3000);
+    // Очищаем старые таймеры, если были (защита от дублирования)
+    clearInterval(p2pInterval);
+    clearInterval(msgInterval);
 
-    // Проверяем новые сообщения каждые 5 секунд
-    setInterval(loadMessages, 5000);
+    // Запускаем новые
+    p2pInterval = setInterval(window.refreshP2PStatus, 3000);
+    msgInterval = setInterval(window.loadMessages, 5000);
 }
-
-// ── Инициализация ─────────────────────────────────────────────────────────────
-
-// Выполняется когда HTML страница полностью загружена
-window.addEventListener('DOMContentLoaded', () => {
-    log('ROOT Desktop готов', 'success');
-});

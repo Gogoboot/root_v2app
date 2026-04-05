@@ -20,7 +20,8 @@ pub fn generate_identity() -> Result<IdentityInfo, ApiError> {
 
     let info = IdentityInfo {
         public_key: pubkey_hex.clone(),
-        mnemonic: Some(Zeroizing::new(mnemonic_str.clone())),
+        mnemonic: Some(mnemonic_str.clone()), // обычная String
+        //mnemonic: Some(Zeroizing::new(mnemonic_str.clone())),
         network: crate::NETWORK_ID.to_string(),
     };
 

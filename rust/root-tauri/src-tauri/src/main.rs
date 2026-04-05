@@ -1,30 +1,29 @@
-// ============================================================
-// ROOT v2.0 — Tauri Desktop Application
-// ============================================================
-
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-// ── Identity ─────────────────────────────────────────────────
+use tauri::Manager;
 
+// ── Identity ─────────────────────────────────────────────────
 #[tauri::command]
 fn generate_identity() -> Result<root_ffi::api::types::IdentityInfo, String> {
-    root_ffi::api::identity::generate_identity()
-        .map_err(|e| e.to_string())
+    root_ffi::api::identity::generate_identity().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn restore_identity(mnemonic: String) -> Result<root_ffi::api::types::IdentityInfo, String> {
-    root_ffi::api::identity::restore_identity(mnemonic)
-        .map_err(|e| e.to_string())
+    root_ffi::api::identity::restore_identity(mnemonic).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn get_public_key() -> Result<String, String> {
-    root_ffi::api::identity::get_public_key()
-        .map_err(|e| e.to_string())
+    root_ffi::api::identity::get_public_key().map_err(|e| e.to_string())
 }
 
 // ── Database ─────────────────────────────────────────────────
+#[tauri::command]
+fn get_db_path(app: tauri::AppHandle) -> Result<String, String> {
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    Ok(dir.join("root.db").to_string_lossy().to_string())
+}
 
 #[tauri::command]
 fn unlock_database(password: String, db_path: String) -> Result<bool, String> {
@@ -34,12 +33,10 @@ fn unlock_database(password: String, db_path: String) -> Result<bool, String> {
 
 #[tauri::command]
 fn panic_button() -> Result<(), String> {
-    root_ffi::api::database::panic_button()
-        .map_err(|e| e.to_string())
+    root_ffi::api::database::panic_button().map_err(|e| e.to_string())
 }
 
 // ── P2P ──────────────────────────────────────────────────────
-
 #[tauri::command]
 fn get_p2p_status() -> bool {
     root_ffi::api::p2p::is_p2p_running()
@@ -47,14 +44,12 @@ fn get_p2p_status() -> bool {
 
 #[tauri::command]
 fn start_p2p_node() -> Result<String, String> {
-    root_ffi::api::p2p::start_p2p_node()
-        .map_err(|e| e.to_string())
+    root_ffi::api::p2p::start_p2p_node().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn stop_p2p_node() -> Result<(), String> {
-    root_ffi::api::p2p::stop_p2p_node()
-        .map_err(|e| e.to_string())
+    root_ffi::api::p2p::stop_p2p_node().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -68,7 +63,6 @@ fn get_incoming_messages() -> Vec<root_ffi::api::types::MessageInfo> {
 }
 
 // ── Messaging ────────────────────────────────────────────────
-
 #[tauri::command]
 fn send_message(to_key: String, content: String) -> Result<u64, String> {
     root_ffi::api::messaging::send_message(to_key, content)
@@ -76,7 +70,6 @@ fn send_message(to_key: String, content: String) -> Result<u64, String> {
 }
 
 // ── Utils ────────────────────────────────────────────────────
-
 #[tauri::command]
 fn get_version() -> String {
     root_ffi::api::utils::get_version()
@@ -88,15 +81,22 @@ fn ping() -> String {
 }
 
 // ── Main ─────────────────────────────────────────────────────
-
 fn main() {
     let _ = env_logger::try_init();
     log::info!("🚀 ROOT Desktop v2.0 starting...");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .setup(|app| {
+            // Гарантируем, что папка для БД существует до первого вызова
+            let _ = app.path().app_data_dir()
+                .map(|p| std::fs::create_dir_all(p).ok());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             ping,
             get_version,
+            get_db_path,
             generate_identity,
             restore_identity,
             get_public_key,

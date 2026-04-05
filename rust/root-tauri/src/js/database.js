@@ -1,80 +1,40 @@
-// ============================================================
-// ROOT v2.0 — database.js
-// Управление базой данных: открытие, Panic Button
-// ============================================================
-
-// ── Открытие БД ───────────────────────────────────────────────────────────────
-
-/**
- * Открывает зашифрованную базу данных.
- *
- * Вызывается отдельно если пользователь уже имеет аккаунт
- * и просто хочет войти в существующую БД.
- *
- * Правильный порядок:
- *   1. unlock_database() — открываем БД
- *   2. identity загружается автоматически внутри Rust из таблицы identity
- *   3. enterApp() — переходим в основной интерфейс
- */
-async function unlockDatabase() {
-    // Читаем путь к файлу БД и пароль из полей на экране
-    const path     = document.getElementById('db-path').value.trim();
+// ==========================================
+// ОТКРЫТИЕ БАЗЫ
+// ==========================================
+window.unlockDatabase = async function() {
+    const invoke = window.__TAURI__.core.invoke;
     const password = document.getElementById('db-password').value;
-
-    // Проверяем что поля заполнены
-    if (!path || !password) {
-        log('Укажи путь к файлу БД и пароль', 'error');
+    
+    if (!password) {
+        window.log('Введите пароль', 'error');
         return;
     }
 
     try {
-        // Вызываем Rust команду unlock_database
-        // Rust откроет или создаст зашифрованный файл SQLite
-        // и попробует загрузить identity из таблицы identity
-        await invoke('unlock_database', { password, dbPath: path });
-
-        log('База данных открыта', 'success');
-
-        // Переходим в основной интерфейс
-        enterApp();
-
+        const dbPath = await invoke('get_db_path');
+        await invoke('unlock_database', { password, dbPath });
+        window.log('База данных открыта', 'success');
+        window.enterApp();
     } catch (e) {
-        // Возможные причины: неверный пароль, файл повреждён, нет доступа
-        log(`Ошибка открытия БД: ${e}`, 'error');
+        window.log('Ошибка входа: ' + e, 'error');
     }
 }
 
-// ── Panic Button ──────────────────────────────────────────────────────────────
-
-/**
- * Уничтожает все данные приложения.
- *
- * НЕОБРАТИМО — ключ шифрования перезаписывается случайными байтами,
- * все данные в БД становятся нечитаемыми навсегда.
- *
- * Используется при принуждении или угрозе безопасности.
- */
-async function panicButton() {
-    // Двойное подтверждение — защита от случайного нажатия
-    if (!confirm('⚠️ Это действие НЕОБРАТИМО.\n\nВсе данные будут уничтожены навсегда.\n\nПродолжить?')) {
-        return;
-    }
+// ==========================================
+// PANIC BUTTON
+// ==========================================
+window.panicButton = async function() {
+    const invoke = window.__TAURI__.core.invoke;
+    if (!confirm('Вы уверены? Все данные будут удалены!')) return;
 
     try {
-        // Вызываем Rust команду panic_button
-        // Rust перезапишет ключ шифрования и удалит файл БД
         await invoke('panic_button');
-
-    } catch (e) {
-        // Panic Button намеренно возвращает ошибку из Rust —
-        // это нормальное поведение, данные уже уничтожены
-        log('💣 Данные уничтожены. Перезапусти приложение.', 'error');
-
-        // Скрываем навигацию — приложение больше не работает
-        document.getElementById('main-nav').style.display = 'none';
-
-        // Возвращаемся на экран инициализации
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        window.log('Данные уничтожены.', 'error');
+        document.getElementById('screen-app').classList.remove('active');
         document.getElementById('screen-init').classList.add('active');
+        document.getElementById('main-nav').style.display = 'none';
+        document.getElementById('db-password').value = '';
+    } catch (e) {
+        window.log('Ошибка: ' + e, 'error');
     }
 }

@@ -14,10 +14,10 @@ use super::models::{Contact, Message};
 use super::panic::PanicButton;
 use crate::key::SaltManager; // <-- Импортируем новый менеджер
 use root_crypto::{
-    CryptoError, Salt, SecureKey, decrypt, derive_key, encrypt, pack_for_storage,
-    unpack_from_storage,
+    decrypt, derive_key, encrypt, pack_for_storage, unpack_from_storage, CryptoError, Salt,
+    SecureKey,
 };
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use std::time::{SystemTime, UNIX_EPOCH};
 use zeroize::{Zeroize, Zeroizing};
 
@@ -70,6 +70,23 @@ impl Database {
     fn load_merkle_tree(conn: &Connection) -> Result<MerkleTree, StorageError> {
         let mut tree = MerkleTree::new();
 
+        // Проверяем существует ли таблица messages.
+        // При первом запуске таблицы ещё нет — initialize() создаст её позже.
+        let table_exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='messages'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|count| count > 0)
+            .unwrap_or(false);
+
+        // Если таблицы нет — возвращаем пустое дерево
+        if !table_exists {
+            return Ok(tree);
+        }
+
+        // Таблица есть — загружаем хеши
         let mut stmt = conn
             .prepare("SELECT merkle_hash FROM messages ORDER BY id ASC")
             .map_err(StorageError::Database)?;
@@ -447,8 +464,7 @@ impl Database {
         let hash_hex = hex::encode(hash);
 
         let plaintext = msg.content.clone().into_bytes();
-        let encrypted =
-            encrypt(&self.key, &plaintext)?;
+        let encrypted = encrypt(&self.key, &plaintext)?;
         let blob = pack_for_storage(&encrypted);
         let content_to_save = hex::encode(blob);
 

@@ -4,201 +4,121 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ROOT v2.0 — Desktop</title>
-    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
-
-    <!-- Подключаем стили из отдельного файла -->
+    <!-- Подключаем стили -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<!-- ── Экран 1: Инициализация ────────────────────────────── -->
-<div id="screen-init" class="screen active">
-    <div>
+    <!-- ========================================== -->
+    <!-- ЭКРАН 1: ИНИЦИАЛИЗАЦИЯ (Вход)              -->
+    <!-- ========================================== -->
+    <div id="screen-init" class="screen active">
         <h1>🔐 ROOT v2.0</h1>
-        <h2>Децентрализованный мессенджер</h2>
+        <p class="subtitle">Децентрализованный мессенджер</p>
+
+        <!-- Вход в существующий аккаунт -->
+        <section class="card">
+            <h2>Вход</h2>
+            <p>Введите пароль для разблокировки базы данных.</p>
+            
+            <!-- Пароль -->
+            <input type="password" id="db-password" placeholder="Пароль от базы данных">
+            
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="unlockDatabase()">Войти</button>
+                <button class="btn btn-secondary" onclick="generateIdentity()">Создать новый аккаунт</button>
+            </div>
+            
+            <!-- Мнемоника (скрыта по умолчанию) -->
+            <div id="mnemonic-display" class="mnemonic-box" style="display: none; margin-top: 10px;">
+                <p>⚠️ СОХРАНИ ЭТИ СЛОВА:</p>
+                <code id="mnemonic-text"></code>
+                <button class="btn btn-success" style="margin-top:10px" onclick="closeMnemonicAndEnter()">Я сохранил</button>
+            </div>
+
+            <!-- Лог ошибок на экране входа -->
+            <div id="init-log" style="margin-top: 10px; color: #ff6b6b;"></div>
+        </section>
     </div>
 
-    <!-- Новый аккаунт -->
-    <div class="card">
-        <h3>Новый аккаунт</h3>
-        <p style="font-size:13px;color:#888;">
-            Генерировать новую идентичность и сохранить мнемонику
-        </p>
-        <button class="btn btn-primary" onclick="generateIdentity()">
-            Создать аккаунт
-        </button>
-
-        <!-- Блок с мнемоникой — скрыт до создания аккаунта -->
-        <div id="mnemonic-display" style="display:none;">
-            <p style="font-size:12px;color:#51cf66;margin-bottom:8px;">
-                ✅ Сохрани мнемонику — она показывается только один раз:
-            </p>
-            <div class="mnemonic-box" id="mnemonic-text"></div>
-        </div>
-    </div>
-
-    <!-- Восстановление аккаунта -->
-    <div class="card">
-        <h3>Восстановить аккаунт</h3>
-        <textarea
-            id="restore-mnemonic"
-            rows="3"
-            placeholder="Введи 24 слова через пробел...">
-        </textarea>
-        <button class="btn btn-secondary" onclick="restoreIdentity()">
-            Восстановить
-        </button>
-    </div>
-
-    <!-- Открытие БД — используется всеми операциями выше -->
-    <div class="card">
-        <h3>База данных</h3>
-        <p style="font-size:12px;color:#888;">
-            Укажи путь и пароль — используется при создании и восстановлении
-        </p>
-        <input
-            type="text"
-            id="db-path"
-            placeholder="Путь к файлу БД (например: C:\root.db)">
-        <input
-            type="password"
-            id="db-password"
-            placeholder="Пароль">
-        <button class="btn btn-success" onclick="unlockDatabase()">
-            Войти в существующий аккаунт
-        </button>
-    </div>
-</div>
-
-<!-- ── Экран 2: P2P сеть ──────────────────────────────────── -->
-<div id="screen-p2p" class="screen">
-    <div>
-        <h1>P2P Сеть</h1>
-        <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
-            <!-- Бейдж статуса — меняется через refreshP2PStatus() -->
-            <div id="p2p-badge" class="status-badge inactive">
-                <div class="dot red" id="p2p-dot"></div>
+    <!-- ========================================== -->
+    <!-- ЭКРАН 2: ОСНОВНОЕ ПРИЛОЖЕНИЕ               -->
+    <!-- ========================================== -->
+    <div id="screen-app" class="screen">
+        
+        <!-- Вкладки -->
+        <div id="tab-network" class="tab active">
+            <h2>P2P Сеть</h2>
+            <div class="status-badge" id="p2p-badge">
+                <span class="dot" id="p2p-dot"></span>
                 <span id="p2p-status-text">Остановлен</span>
             </div>
-            <span style="font-size:12px;color:#555;" id="peer-count-text">
-                0 пиров
-            </span>
+            <p><span id="peer-count-text">0 пиров</span></p>
+            
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="startP2P()">▶ Запустить</button>
+                <button class="btn btn-danger" onclick="stopP2P()">⏹ Остановить</button>
+            </div>
+
+            <div class="card">
+                <h3>Мой публичный ключ</h3>
+                <code id="my-pubkey" class="pubkey-box">Загрузка...</code>
+                <button class="btn btn-secondary" onclick="copyPubkey()">Скопировать</button>
+            </div>
+
+            <h3>Лог событий</h3>
+            <div id="log"></div>
         </div>
-    </div>
 
-    <div class="card">
-        <div class="btn-row">
-            <button class="btn btn-success"   onclick="startP2P()">▶ Запустить</button>
-            <button class="btn btn-danger"    onclick="stopP2P()">⏹ Остановить</button>
-            <button class="btn btn-secondary" onclick="refreshP2PStatus()">↻ Обновить</button>
+        <div id="tab-chat" class="tab" style="display: none;">
+            <h2>Сообщения</h2>
+            <div class="card">
+                <input type="text" id="to-key" placeholder="Публичный ключ получателя">
+                <textarea id="msg-content" placeholder="Текст сообщения" rows="3"></textarea>
+                <button class="btn btn-primary" onclick="sendMessage()">Отправить</button>
+            </div>
+
+            <div class="card">
+                <h3>Входящие</h3>
+                <button class="btn btn-secondary" onclick="loadMessages()">↻ Обновить</button>
+                <div id="msg-list" class="msg-list">
+                    <p>Нет сообщений</p>
+                </div>
+            </div>
         </div>
-    </div>
 
-    <!-- Публичный ключ -->
-    <div class="card">
-        <h3>Мой публичный ключ</h3>
-        <div class="pubkey-box" id="my-pubkey">—</div>
-        <button
-            class="btn btn-secondary"
-            onclick="copyPubkey()"
-            style="align-self:flex-start;">
-            Скопировать
-        </button>
-    </div>
-
-    <!-- Лог событий -->
-    <div class="card">
-        <h3>Лог событий</h3>
-        <div id="log"></div>
-    </div>
-</div>
-
-<!-- ── Экран 3: Сообщения ─────────────────────────────────── -->
-<div id="screen-msg" class="screen">
-    <h1>Сообщения</h1>
-
-    <!-- Форма отправки -->
-    <div class="card">
-        <h3>Отправить</h3>
-        <input
-            type="text"
-            id="to-key"
-            placeholder="Публичный ключ получателя (64 символа hex)">
-        <textarea
-            id="msg-content"
-            rows="3"
-            placeholder="Текст сообщения...">
-        </textarea>
-        <button class="btn btn-primary" onclick="sendMessage()">
-            Отправить
-        </button>
-    </div>
-
-    <!-- Список входящих сообщений -->
-    <div class="card">
-        <h3>Входящие</h3>
-        <button
-            class="btn btn-secondary"
-            onclick="loadMessages()"
-            style="align-self:flex-start;">
-            ↻ Обновить
-        </button>
-        <div class="msg-list" id="msg-list">
-            <p style="color:#555;font-size:13px;">Нет сообщений</p>
+        <div id="tab-settings" class="tab" style="display: none;">
+            <h2>Настройки</h2>
+            <div class="card">
+                <h3>Идентичность</h3>
+                <code id="settings-pubkey" class="pubkey-box">—</code>
+            </div>
+            
+            <div class="card warning-box">
+                <h3>⚠️ Panic Button</h3>
+                <p>Уничтожает все данные безвозвратно.</p>
+                <button class="btn btn-danger" onclick="panicButton()">💣 Уничтожить данные</button>
+            </div>
+            
+            <p id="version-text">Версия: ...</p>
         </div>
-    </div>
-</div>
 
-<!-- ── Экран 4: Настройки ─────────────────────────────────── -->
-<div id="screen-settings" class="screen">
-    <h1>Настройки</h1>
-
-    <!-- Публичный ключ -->
-    <div class="card">
-        <h3>Идентичность</h3>
-        <div class="pubkey-box" id="settings-pubkey">—</div>
+        <!-- Нижняя навигация -->
+        <nav id="main-nav" style="display: none;">
+            <button class="nav-btn active" onclick="showTab('network', this)">📡 Сеть</button>
+            <button class="nav-btn" onclick="showTab('chat', this)">✉️ Чат</button>
+            <button class="nav-btn" onclick="showTab('settings', this)">⚙️ Настройки</button>
+        </nav>
     </div>
 
-    <!-- Версия -->
-    <div class="card">
-        <h3>Версия</h3>
-        <p style="font-size:13px;color:#888;" id="version-text">—</p>
-    </div>
-
-    <!-- Panic Button -->
-    <div class="card">
-        <h3 style="color:#ea868f;">Опасная зона</h3>
-        <div class="warning-box">
-            Panic Button уничтожит все данные безвозвратно.
-            Файл БД будет перезаписан и удалён.
-        </div>
-        <button class="btn btn-danger" onclick="panicButton()">
-            💣 Panic Button
-        </button>
-    </div>
-</div>
-
-<!-- ── Навигация ──────────────────────────────────────────── -->
-<!-- Скрыта до входа в приложение -->
-<nav id="main-nav" style="display:none;">
-    <button class="nav-btn active" onclick="showScreen('p2p', this)">
-        📡 Сеть
-    </button>
-    <button class="nav-btn" onclick="showScreen('msg', this)">
-        ✉️ Чат
-    </button>
-    <button class="nav-btn" onclick="showScreen('settings', this)">
-        ⚙️ Настройки
-    </button>
-</nav>
-
-<!-- ── JavaScript файлы ───────────────────────────────────── -->
-<!-- Порядок важен: main.js первый — он содержит общие функции -->
-<script src="js/main.js"></script>
-<script src="js/database.js"></script>
-<script src="js/identity.js"></script>
-<script src="js/p2p.js"></script>
-<script src="js/messaging.js"></script>
-
+    <!-- 
+      ВАЖНО: type="module" позволяет использовать import/export.
+      Без этого Tauri API не подключится. 
+    -->
+    <script src="js/main.js"></script>
+    <script src="js/database.js"></script>
+    <script src="js/identity.js"></script>
+    <script src="js/p2p.js"></script>
+    <script src="js/messaging.js"></script>
 </body>
 </html>

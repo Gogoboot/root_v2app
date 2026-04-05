@@ -7,6 +7,7 @@
     "frontendDist": "../src"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "ROOT v2.0 — Desktop",
@@ -18,14 +19,11 @@
     ],
     "security": {
       "csp": null
-    },
-    "withGlobalTauri": true
+    }
   },
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": [
-      "icons/icon.ico"
-    ]
+    "icon": []
   }
 }

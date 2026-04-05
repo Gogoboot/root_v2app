@@ -29,6 +29,7 @@ pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiErr
 
     db.initialize()
         .map_err(ApiError::from)?;
+    println!("  ✅ Таблицы созданы"); // ← добавить здесь
 
     let mut state = APP_STATE.lock().unwrap();
 
