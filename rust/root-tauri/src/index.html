@@ -12,55 +12,63 @@
     <!-- ЭКРАН 1: ИНИЦИАЛИЗАЦИЯ (Вход)              -->
     <!-- ========================================== -->
     <div id="screen-init" class="screen active">
-        <h1>🔐 ROOT v2.0</h1>
-        <p class="subtitle">Децентрализованный мессенджер</p>
-
-        <section class="card">
-            <h2>Вход</h2>
-            <p>Введите пароль для разблокировки базы данных.</p>
-
-            <input type="password" id="db-password" placeholder="Пароль от базы данных"
-                   onkeydown="if(event.key==='Enter') unlockDatabase()">
-
-            <div class="btn-row">
-                <button class="btn btn-primary" onclick="unlockDatabase()">Войти</button>
-                <button class="btn btn-secondary" onclick="generateIdentity()">Создать новый аккаунт</button>
+        <div class="login-container">
+            <div class="login-logo">
+                <span class="logo-icon">⬡</span>
+                <h1>ROOT</h1>
+                <p class="logo-version">v2.0 — Decentralized Messenger</p>
             </div>
 
-            <!-- Мнемоника (скрыта по умолчанию) -->
-            <div id="mnemonic-display" style="display: none; margin-top: 10px;">
-                <p style="color: #ffab40; margin-bottom: 12px;">
-                    ⚠️ Запиши эти 24 слова — они показываются только один раз:
-                </p>
-                <div id="mnemonic-grid" style="
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 8px;
-                    margin-bottom: 16px;
-                "></div>
-                <button class="btn btn-success" onclick="closeMnemonicAndEnter()">
-                    ✅ Я записал все слова
-                </button>
-            </div>
+            <section class="card login-card">
+                <h2>Вход в систему</h2>
+                <p class="card-subtitle">Введите пароль для разблокировки базы данных</p>
 
-            <div id="init-log" style="margin-top: 10px; color: #ff6b6b;"></div>
-        </section>
+                <input type="password" id="db-password"
+                       placeholder="••••••••••••"
+                       onkeydown="if(event.key==='Enter') unlockDatabase()">
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" onclick="unlockDatabase()">
+                        → Войти
+                    </button>
+                    <button class="btn btn-ghost" onclick="generateIdentity()">
+                        + Новый аккаунт
+                    </button>
+                </div>
+
+                <div id="mnemonic-display" style="display: none; margin-top: 10px;">
+                    <p class="mnemonic-warning">
+                        ⚠ Запишите эти 24 слова — они показываются только один раз
+                    </p>
+                    <div id="mnemonic-grid" class="mnemonic-grid"></div>
+                    <button class="btn btn-success" onclick="closeMnemonicAndEnter()">
+                        ✓ Я записал все слова
+                    </button>
+                </div>
+
+                <div id="init-log" class="init-log"></div>
+            </section>
+        </div>
     </div>
 
     <!-- ========================================== -->
     <!-- ЭКРАН 2: ОСНОВНОЕ ПРИЛОЖЕНИЕ               -->
     <!-- ========================================== -->
-    <div id="screen-app" class="screen">
+    <div id="screen-app" class="screen app-screen">
 
         <!-- ВКЛАДКА: СЕТЬ -->
         <div id="tab-network" class="tab active">
-            <h2>P2P Сеть</h2>
-
-            <div class="status-badge" id="p2p-badge">
-                <span class="dot" id="p2p-dot"></span>
-                <span id="p2p-status-text">Остановлен</span>
+            <div class="tab-header">
+                <h2>P2P Сеть</h2>
             </div>
-            <p><span id="peer-count-text">0 пиров</span></p>
+
+            <div class="network-status-row">
+                <div class="status-badge" id="p2p-badge">
+                    <span class="dot" id="p2p-dot"></span>
+                    <span id="p2p-status-text">Остановлен</span>
+                </div>
+                <span id="peer-count-text" class="peer-count">0 пиров</span>
+            </div>
 
             <div class="btn-row">
                 <button class="btn btn-primary" onclick="startP2P()">▶ Запустить</button>
@@ -70,109 +78,120 @@
             <div class="card">
                 <h3>Мой публичный ключ</h3>
                 <code id="my-pubkey" class="pubkey-box">Загрузка...</code>
-                <button class="btn btn-secondary" onclick="copyPubkey()">Скопировать</button>
+                <button class="btn btn-ghost" onclick="copyPubkey()">⎘ Скопировать</button>
             </div>
 
-            <h3>Лог событий</h3>
+            <h3 class="section-title">Лог событий</h3>
             <div id="log"></div>
         </div>
 
         <!-- ВКЛАДКА: ЧАТ -->
-        <div id="tab-chat" class="tab" style="display: none;">
-            <h2>Сообщения</h2>
+        <div id="tab-chat" class="tab chat-tab" style="display: none;">
 
-            <!-- Форма отправки -->
-            <div class="card">
-                <h3>Отправить</h3>
+            <!-- Левая панель: список контактов -->
+            <div class="chat-sidebar">
+                <div class="sidebar-header">
+                    <span>Чаты</span>
+                    <button class="btn-icon" onclick="showNewChat()" title="Новый чат">+</button>
+                </div>
 
-                <!-- Поле получателя с кнопкой вставки своего ключа для тестов -->
-                <div style="position: relative;">
+                <!-- Форма нового чата (скрыта по умолчанию) -->
+                <!-- Кнопка "Мой ключ" убрана — свой ключ находится в Настройках -->
+                <div id="new-chat-form" style="display: none;" class="new-chat-form">
                     <input type="text" id="to-key"
-                           placeholder="Публичный ключ получателя (hex)"
-                           style="padding-right: 110px;">
-                    <button class="btn btn-secondary"
-                            onclick="pasteMyKey()"
-                            style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-                                   padding: 4px 8px; font-size: 11px;">
-                        📋 Мой ключ
+                           placeholder="Публичный ключ получателя..."
+                           class="new-chat-input">
+                    <button class="btn btn-primary btn-sm" onclick="startChatWithKey()">
+                        → Начать чат
                     </button>
                 </div>
 
-                <textarea id="msg-content"
-                          placeholder="Текст сообщения..."
-                          rows="3"
-                          onkeydown="if(event.ctrlKey && event.key==='Enter') sendMessage()"></textarea>
-
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <button class="btn btn-primary" onclick="sendMessage()">
-                        ✉️ Отправить
-                    </button>
-                    <span style="font-size: 11px; color: #555;">Ctrl+Enter для отправки</span>
+                <!-- Список контактов — заполняется из JS -->
+                <div id="contact-list" class="contact-list">
+                    <p class="empty-state">Нет переписок</p>
                 </div>
             </div>
 
-            <!-- Входящие сообщения -->
-            <div class="card">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                    <h3 style="margin: 0;">📥 Входящие</h3>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <!-- Индикатор автообновления -->
-                        <span id="msg-auto-indicator" style="font-size: 11px; color: #555;">
-                            авто: вкл
-                        </span>
-                        <button class="btn btn-secondary" onclick="loadMessages()" style="padding: 4px 10px;">
-                            ↻ Обновить
-                        </button>
+            <!-- Правая панель: переписка -->
+            <div class="chat-main">
+
+                <!-- Шапка текущего чата -->
+                <div class="chat-header">
+                    <div id="chat-header-info">
+                        <span class="chat-header-name" id="current-chat-name">Выберите чат</span>
+                        <span class="chat-header-key" id="current-chat-key"></span>
+                    </div>
+                    <div class="encryption-badge" title="End-to-end шифрование">
+                        🔒 E2E
                     </div>
                 </div>
 
-                <!-- Счётчик сообщений -->
-                <div id="msg-count" style="font-size: 11px; color: #555; margin-bottom: 6px;"></div>
-
+                <!-- Окно сообщений -->
                 <div id="msg-list" class="msg-list">
-                    <p style="color: #555; text-align: center; padding: 20px 0;">Нет сообщений</p>
+                    <div class="empty-chat-state">
+                        <span class="empty-chat-icon">⬡</span>
+                        <p>Выберите контакт слева<br>или начните новый чат</p>
+                    </div>
                 </div>
+
+                <!-- Поле ввода -->
+                <div class="chat-input-area">
+                    <textarea id="msg-content"
+                              placeholder="Сообщение..."
+                              rows="1"
+                              onkeydown="if(event.ctrlKey && event.key==='Enter') sendMessage()"
+                              oninput="autoResizeTextarea(this)"></textarea>
+                    <button class="btn-send" onclick="sendMessage()" title="Ctrl+Enter">→</button>
+                </div>
+                <div class="input-hint">Ctrl+Enter для отправки</div>
             </div>
         </div>
 
         <!-- ВКЛАДКА: НАСТРОЙКИ -->
         <div id="tab-settings" class="tab" style="display: none;">
-            <h2>Настройки</h2>
+            <div class="tab-header">
+                <h2>Настройки</h2>
+            </div>
 
-            <!-- Идентичность -->
             <div class="card">
                 <h3>Идентичность</h3>
-                <p style="font-size: 12px; color: #888; margin-bottom: 4px;">Ваш публичный ключ:</p>
+                <p class="card-subtitle">Ваш публичный ключ</p>
                 <code id="settings-pubkey" class="pubkey-box">—</code>
-                <button class="btn btn-secondary" onclick="copySettingsPubkey()" style="margin-top: 8px;">
-                    Скопировать ключ
-                </button>
+                <button class="btn btn-ghost" onclick="copySettingsPubkey()">⎘ Скопировать ключ</button>
             </div>
 
-            <!-- Выход из аккаунта -->
             <div class="card">
                 <h3>🔒 Выход</h3>
-                <p>Закрыть базу данных и вернуться на экран входа.<br>
-                   <span style="font-size: 12px; color: #888;">Данные останутся сохранены.</span>
+                <p class="card-subtitle">
+                    Закрыть базу данных и вернуться на экран входа.<br>
+                    Данные останутся сохранены.
                 </p>
-                <button class="btn btn-secondary" onclick="logout()">Выйти из аккаунта</button>
+                <button class="btn btn-ghost" onclick="logout()">Выйти из аккаунта</button>
             </div>
 
-            <!-- Panic Button -->
             <div class="card warning-box">
-                <h3>⚠️ Panic Button</h3>
+                <h3>⚠ Panic Button</h3>
                 <p>Уничтожает все данные безвозвратно.</p>
                 <button class="btn btn-danger" onclick="panicButton()">💣 Уничтожить данные</button>
             </div>
 
-            <p id="version-text" style="color: #555; font-size: 12px; margin-top: 16px;">Версия: ...</p>
+            <p id="version-text" class="version-text">Версия: ...</p>
         </div>
 
         <!-- Нижняя навигация -->
         <nav id="main-nav" style="display: none;">
-            <button class="nav-btn active" onclick="showTab('network', this)">📡 Сеть</button>
-            <button class="nav-btn" onclick="showTab('chat', this)">✉️ Чат</button>
-            <button class="nav-btn" onclick="showTab('settings', this)">⚙️ Настройки</button>
+            <button class="nav-btn active" onclick="showTab('network', this)">
+                <span class="nav-icon">📡</span>
+                <span class="nav-label">Сеть</span>
+            </button>
+            <button class="nav-btn" onclick="showTab('chat', this)">
+                <span class="nav-icon">💬</span>
+                <span class="nav-label">Чат</span>
+            </button>
+            <button class="nav-btn" onclick="showTab('settings', this)">
+                <span class="nav-icon">⚙</span>
+                <span class="nav-label">Настройки</span>
+            </button>
         </nav>
     </div>
 

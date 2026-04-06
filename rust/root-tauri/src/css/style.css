@@ -1,257 +1,788 @@
 /* ============================================================
-ROOT v2.0 — Global Styles
+   ROOT v2.0 — Global Styles
+   Тема: тёмный терминальный стиль, cyan акценты
 ============================================================ */
 
-/* Универсальный сброс отступов для ВСЕХ элементов */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
 
+:root {
+    /* Цветовая палитра */
+    --bg-deep:    #0d0d1a;
+    --bg-base:    #111122;
+    --bg-surface: #16192e;
+    --bg-raised:  #1c2040;
+    --bg-hover:   #222548;
+
+    --border:     #2a2d52;
+    --border-bright: #3a3d62;
+
+    --cyan:       #00d9ff;
+    --cyan-dim:   #00a8c8;
+    --cyan-glow:  rgba(0, 217, 255, 0.15);
+
+    --green:      #51cf66;
+    --red:        #ff6b6b;
+    --orange:     #ffab40;
+    --purple:     #845ef7;
+
+    --text-primary:   #e8eaf0;
+    --text-secondary: #8890b0;
+    --text-muted:     #4a5070;
+
+    /* Пузыри сообщений */
+    --bubble-out-bg:   #1a3a6a;   /* мои сообщения — синий */
+    --bubble-out-text: #c8e0ff;
+    --bubble-in-bg:    #1c2040;   /* входящие — тёмный */
+    --bubble-in-text:  #d8daf0;
+
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-ui:   'Inter', 'Segoe UI', sans-serif;
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-bubble: 18px;
+}
+
 body {
-    font-family: 'Segoe UI', sans-serif;
-    background: #1a1a2e;
-    color: #eee;
+    font-family: var(--font-ui);
+    background: var(--bg-deep);
+    color: var(--text-primary);
     height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ── Экраны ──────────────────────────────────────────────── */
+.screen {
+    display: none;
+    flex: 1;
+    overflow: hidden;
+}
+.screen.active {
     display: flex;
     flex-direction: column;
 }
 
-/* Экраны: скрыты по умолчанию */
-.screen {
-    display: none;
-    flex: 1;
-    padding: 30px;
-    overflow-y: auto;
+/* ── ЭКРАН ВХОДА ─────────────────────────────────────────── */
+#screen-init.active {
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-deep);
+    /* Тонкая сетка на фоне — ощущение терминала */
+    background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: center center;
 }
-.screen.active {
+
+.login-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+}
+
+.login-logo {
+    text-align: center;
+}
+
+.logo-icon {
+    font-size: 48px;
+    color: var(--cyan);
+    display: block;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 20px var(--cyan));
+}
+
+.login-logo h1 {
+    font-family: var(--font-mono);
+    font-size: 36px;
+    font-weight: 600;
+    color: var(--cyan);
+    letter-spacing: 8px;
+    text-shadow: 0 0 30px var(--cyan-glow);
+}
+
+.logo-version {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 4px;
+}
+
+.login-card {
+    width: 100%;
+}
+
+.init-log {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    min-height: 20px;
+    color: var(--text-muted);
+}
+
+/* ── ОСНОВНОЕ ПРИЛОЖЕНИЕ ─────────────────────────────────── */
+.app-screen {
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* Вкладки занимают всё пространство между шапкой и навом */
+.tab {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
     display: flex;
     flex-direction: column;
     gap: 16px;
 }
 
-/* Карточки */
+/* Чат-вкладка особая — горизонтальный split, без скролла снаружи */
+.chat-tab {
+    flex-direction: row;
+    padding: 0;
+    overflow: hidden;
+    gap: 0;
+}
+
+/* ── Заголовок вкладки ───────────────────────────────────── */
+.tab-header h2 {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--cyan);
+    letter-spacing: 1px;
+}
+
+.section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+}
+
+/* ── Карточки ────────────────────────────────────────────── */
 .card {
-    background: #16213e;
-    border: 1px solid #2a2a4a;
-    border-radius: 8px;
-    padding: 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
 }
-.card h3 { color: #00d9ff; font-size: 14px; }
 
-/* Поля ввода */
+.card h3 {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cyan);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.card-subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* ── Поля ввода ──────────────────────────────────────────── */
 input, textarea {
     width: 100%;
-    padding: 10px 12px;
-    border-radius: 6px;
-    border: 1px solid #2a2a4a;
-    background: #0f0f1a;
-    color: #eee;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
     font-size: 13px;
+    transition: border-color 0.15s, box-shadow 0.15s;
 }
+
 input:focus, textarea:focus {
     outline: none;
-    border-color: #00d9ff;
+    border-color: var(--cyan-dim);
+    box-shadow: 0 0 0 3px var(--cyan-glow);
 }
 
-/* Кнопки */
+input::placeholder, textarea::placeholder {
+    color: var(--text-muted);
+}
+
+/* ── Кнопки ──────────────────────────────────────────────── */
 .btn {
-    padding: 10px 18px;
-    border-radius: 6px;
+    padding: 9px 18px;
+    border-radius: var(--radius-sm);
     border: none;
     cursor: pointer;
+    font-family: var(--font-ui);
     font-size: 13px;
     font-weight: 500;
-    transition: opacity 0.2s;
+    transition: opacity 0.15s, transform 0.1s;
+    white-space: nowrap;
 }
-.btn:hover { opacity: 0.85; }
-.btn-primary   { background: #0d6efd; color: white; }
-.btn-success   { background: #198754; color: white; }
-.btn-danger    { background: #842029; color: white; }
 
-/* ВАРИАНТ А (текущий): secondary такой же синий как primary.
-   ВАРИАНТ Б: раскомментируй строку ниже если хочешь серый secondary */
-.btn-secondary { background: #0d6efd; color: white; }
-/* .btn-secondary { background: #2a2a4a; color: #aaa; } */
+.btn:hover  { opacity: 0.85; }
+.btn:active { transform: scale(0.98); }
+
+.btn-primary  { background: var(--cyan);   color: #000; font-weight: 600; }
+.btn-success  { background: var(--green);  color: #000; font-weight: 600; }
+.btn-danger   { background: #6b1a1a;       color: var(--red); border: 1px solid var(--red); }
+.btn-danger:hover { background: #8b2020; }
+
+/* Ghost кнопка — прозрачный фон, рамка */
+.btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+.btn-ghost:hover {
+    border-color: var(--border-bright);
+    color: var(--text-primary);
+}
+
+.btn-sm { padding: 6px 12px; font-size: 12px; }
 
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* Статус P2P */
+/* Кнопка-иконка (круглая, для + в сайдбаре) */
+.btn-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--cyan);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+.btn-icon:hover { background: var(--cyan-glow); }
+
+/* Кнопка отправки сообщения */
+.btn-send {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--cyan);
+    color: #000;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: opacity 0.15s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-send:hover  { opacity: 0.85; }
+.btn-send:active { transform: scale(0.95); }
+
+/* ── Статус P2P ──────────────────────────────────────────── */
+.network-status-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
 .status-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 12px; border-radius: 20px; font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
 }
-.status-badge.active   { background: #0f5132; color: #75b798; }
-.status-badge.inactive { background: #2a1215; color: #ea868f; }
-.dot { width: 8px; height: 8px; border-radius: 50%; }
-.dot.green  { background: #51cf66; }
-.dot.red    { background: #ff6b6b; }
 
-/* ── Лог событий (P2P вкладка) ─────────────────────────── */
-/* max-height ограничивает высоту — иначе лог растянет страницу */
+.status-badge.active   { border-color: var(--green); color: var(--green); }
+.status-badge.inactive { border-color: var(--text-muted); color: var(--text-muted); }
+
+.dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+.dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.red   { background: var(--text-muted); }
+
+.peer-count {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* ── Лог событий ─────────────────────────────────────────── */
 #log {
-    background: #0a0a14;
-    border: 1px solid #2a2a4a;
-    border-radius: 6px;
-    padding: 12px;
-    max-height: 200px;
-    overflow-y: auto;       /* скролл внутри блока, не страницы */
-    font-family: monospace;
-    font-size: 11px;
-}
-.log-entry   { margin: 2px 0; }
-.log-info    { color: #00d9ff; }
-.log-success { color: #51cf66; }
-.log-error   { color: #ff6b6b; }
-
-/* ── Список сообщений ────────────────────────────────────── */
-/* Отдельный класс от #log — у чата другая высота и нет monospace */
-.msg-list {
-    background: #0a0a14;
-    border: 1px solid #2a2a4a;
-    border-radius: 6px;
-    padding: 12px;
-    /* ПОЧЕМУ 300px: достаточно для ~4-5 сообщений, не ломает layout */
-    max-height: 300px;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    max-height: 220px;
     overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
     display: flex;
     flex-direction: column;
-    gap: 8px;               /* расстояние между сообщениями */
+    gap: 2px;
 }
 
-/* ── Одно сообщение ──────────────────────────────────────── */
-.msg-item {
-    background: #0f0f1a;
-    border: 1px solid #2a2a4a;
-    border-radius: 6px;
+.log-entry   { line-height: 1.4; }
+.log-info    { color: var(--cyan-dim); }
+.log-success { color: var(--green); }
+.log-error   { color: var(--red); }
+
+/* ── Публичный ключ ──────────────────────────────────────── */
+.pubkey-box {
+    display: block;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
     padding: 10px 12px;
-    /* transition добавляет плавное появление при hover */
-    transition: border-color 0.15s;
-}
-.msg-item:hover {
-    /* Подсветка при наведении — даёт ощущение интерактивности */
-    border-color: #00d9ff33; /* 33 в конце = 20% прозрачность */
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-secondary);
+    word-break: break-all;
+    line-height: 1.6;
 }
 
-/* ── Шапка сообщения: отправитель слева, время справа ────── */
-/* Это классический паттерн flexbox: space-between разносит
-   два элемента по краям строки */
-.msg-header {
+/* ── ЧАТ: two-panel layout ───────────────────────────────── */
+
+/* Левая панель — список чатов */
+.chat-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sidebar-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
     align-items: center;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cyan);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+}
+
+/* Форма нового чата */
+.new-chat-form {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.new-chat-input {
+    font-size: 11px;
+    padding: 7px 10px;
+}
+
+.new-chat-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+/* Список контактов */
+.contact-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+/* Один контакт в списке */
+.contact-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    border-left: 3px solid transparent;
+    transition: background 0.1s, border-color 0.1s;
+}
+
+.contact-item:hover {
+    background: var(--bg-hover);
+}
+
+.contact-item.active {
+    background: var(--bg-raised);
+    border-left-color: var(--cyan);
+}
+
+.contact-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+
+.contact-preview {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.contact-time {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+/* Правая панель — переписка */
+.chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-base);
+}
+
+/* Шапка текущего чата */
+.chat-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-surface);
+    flex-shrink: 0;
+}
+
+.chat-header-name {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: block;
+}
+
+.chat-header-key {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 2px;
+}
+
+/* Индикатор шифрования */
+.encryption-badge {
+    font-size: 11px;
+    color: var(--green);
+    font-family: var(--font-mono);
+    padding: 3px 8px;
+    border: 1px solid rgba(81, 207, 102, 0.3);
+    border-radius: 20px;
+    background: rgba(81, 207, 102, 0.05);
+}
+
+/* ── Окно сообщений ──────────────────────────────────────── */
+.msg-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Пустое состояние чата */
+.empty-chat-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.empty-chat-icon {
+    font-size: 48px;
+    color: var(--border);
+    display: block;
+}
+
+.empty-chat-state p {
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* Разделитель даты */
+.date-divider {
+    text-align: center;
+    margin: 12px 0 8px;
+    position: relative;
+}
+
+.date-divider span {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    background: var(--bg-base);
+    padding: 0 10px;
+    position: relative;
+    z-index: 1;
+}
+
+.date-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--border);
+}
+
+/* ── Пузыри сообщений ────────────────────────────────────── */
+
+/* Обёртка — определяет выравнивание (лево/право) */
+.msg-wrapper {
+    display: flex;
+    flex-direction: column;
+    max-width: 72%;
     margin-bottom: 6px;
 }
 
-/* Ключ отправителя */
-.msg-from {
-    color: #00d9ff;
-    font-size: 11px;
-    font-family: monospace;
-    /* cursor pointer намекает что можно кликнуть (в будущем — скопировать) */
-    cursor: default;
+/* Моё сообщение — справа */
+.msg-wrapper.outgoing {
+    align-self: flex-end;
+    align-items: flex-end;
 }
 
-/* Время отправки — приглушённое, не главное */
-.msg-time {
-    color: #555;
-    font-size: 10px;
-    /* white-space: nowrap не даёт времени переноситься на новую строку */
-    white-space: nowrap;
-    margin-left: 8px;
+/* Входящее — слева */
+.msg-wrapper.incoming {
+    align-self: flex-start;
+    align-items: flex-start;
 }
 
-/* Текст сообщения */
-.msg-body {
-    color: #ddd;
+/* Сам пузырь */
+.msg-bubble {
+    padding: 9px 14px;
+    border-radius: var(--radius-bubble);
     font-size: 13px;
     line-height: 1.5;
-    /* pre-wrap сохраняет переносы строк если пользователь нажал Enter */
+    word-break: break-word;
     white-space: pre-wrap;
-    word-break: break-word; /* длинные слова/ключи не ломают layout */
+    position: relative;
 }
 
-/* ── Навигация (нижняя панель) ───────────────────────────── */
-nav {
-    background: #0f0f1a;
-    border-top: 1px solid #2a2a4a;
+/* Мои сообщения — синий пузырь, скруглён снизу-справа меньше */
+.msg-wrapper.outgoing .msg-bubble {
+    background: var(--bubble-out-bg);
+    color: var(--bubble-out-text);
+    border-bottom-right-radius: 4px;
+    border: 1px solid rgba(0, 150, 200, 0.3);
+}
+
+/* Входящие — тёмный пузырь, скруглён снизу-слева меньше */
+.msg-wrapper.incoming .msg-bubble {
+    background: var(--bubble-in-bg);
+    color: var(--bubble-in-text);
+    border-bottom-left-radius: 4px;
+    border: 1px solid var(--border);
+}
+
+/* Имя отправителя над пузырём (для входящих) */
+.msg-sender {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--cyan-dim);
+    margin-bottom: 3px;
+    padding-left: 4px;
+}
+
+/* Время и статус под пузырём */
+.msg-meta {
     display: flex;
-    padding: 8px;
-    gap: 8px;
-    /* flex-shrink: 0 — навигация не сжимается когда контент большой */
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+    padding: 0 4px;
+}
+
+.msg-time {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+
+/* Статус доставки */
+.msg-status {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.msg-status.sent    { color: var(--text-muted); }   /* ✓ отправлено */
+.msg-status.local   { color: var(--orange); }        /* 📦 только локально */
+
+/* ── Форма ввода сообщения ───────────────────────────────── */
+.chat-input-area {
+    padding: 12px 16px 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    background: var(--bg-surface);
     flex-shrink: 0;
 }
+
+.chat-input-area textarea {
+    flex: 1;
+    resize: none;
+    max-height: 120px;
+    font-size: 13px;
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    line-height: 1.5;
+}
+
+.input-hint {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: right;
+    padding: 0 16px 8px;
+    font-family: var(--font-mono);
+    background: var(--bg-surface);
+    flex-shrink: 0;
+}
+
+/* ── Навигация ───────────────────────────────────────────── */
+nav {
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 6px 8px;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
 .nav-btn {
     flex: 1;
-    padding: 10px;
-    border-radius: 6px;
+    padding: 8px 4px;
+    border-radius: var(--radius-sm);
     border: none;
     background: transparent;
-    color: #666;
+    color: var(--text-muted);
     cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
     transition: background 0.15s, color 0.15s;
 }
-.nav-btn:hover { color: #aaa; }
-.nav-btn.active { background: #16213e; color: #00d9ff; }
+
+.nav-btn:hover { color: var(--text-secondary); }
+
+.nav-btn.active {
+    background: var(--bg-raised);
+    color: var(--cyan);
+}
+
+.nav-icon  { font-size: 16px; }
+.nav-label { font-size: 10px; font-family: var(--font-mono); }
 
 /* ── Мнемоника ───────────────────────────────────────────── */
-.mnemonic-box {
-    background: #0f0f1a;
-    border: 1px solid #198754;
-    padding: 14px;
-    font-family: monospace;
-    color: #75b798;
-    word-break: break-all;
-}
-
-/* Публичный ключ — блочный элемент с переносом длинной строки */
-.pubkey-box {
-    display: block;
-    background: #0f0f1a;
-    padding: 10px;
-    border-radius: 6px;
-    font-family: monospace;
-    font-size: 11px;
-    word-break: break-all;
-    margin-bottom: 10px;
-}
-
-/* Блок с предупреждением (Panic Button) */
-.warning-box {
-    border-color: #842029;
-    background: #2a1215;
-    color: #ea868f;
-}
-
-/* ── Сетка слов мнемоники ────────────────────────────────── */
-.mnemonic-word {
-    background: #0f0f1a;
-    border: 1px solid #198754;
-    border-radius: 6px;
-    padding: 8px;
-    font-family: monospace;
+.mnemonic-warning {
+    color: var(--orange);
     font-size: 12px;
-    color: #75b798;
-    display: flex;
+    line-height: 1.5;
+    padding: 8px 12px;
+    background: rgba(255, 171, 64, 0.08);
+    border: 1px solid rgba(255, 171, 64, 0.2);
+    border-radius: var(--radius-sm);
+}
+
+.mnemonic-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 6px;
+    margin: 8px 0;
+}
+
+.mnemonic-word {
+    background: var(--bg-base);
+    border: 1px solid rgba(81, 207, 102, 0.3);
+    border-radius: var(--radius-sm);
+    padding: 7px 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--green);
+    display: flex;
+    gap: 5px;
     align-items: center;
 }
 
-/* Порядковый номер слова — серый, не отвлекает */
 .mnemonic-word .num {
-    color: #555;
-    font-size: 10px;
-    min-width: 16px;
+    color: var(--text-muted);
+    font-size: 9px;
+    min-width: 14px;
 }
 
-/* ── Счётчик сообщений и индикатор авто-обновления ─────── */
-/* Мелкий вспомогательный текст — не главный, но информативный */
-#msg-count,
-#msg-auto-indicator {
-    font-size: 11px;
-    color: #555;
+/* ── Настройки ───────────────────────────────────────────── */
+.warning-box {
+    border-color: rgba(255, 107, 107, 0.3);
+    background: rgba(107, 26, 26, 0.2);
 }
+
+.warning-box h3 { color: var(--red); }
+
+.version-text {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 8px 0;
+}
+
+/* ── Empty state ─────────────────────────────────────────── */
+.empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 24px 16px;
+}
+
+/* ── Скроллбары ──────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-bright); }
