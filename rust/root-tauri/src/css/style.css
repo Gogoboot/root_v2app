@@ -72,7 +72,12 @@ input:focus, textarea:focus {
 .btn-primary   { background: #0d6efd; color: white; }
 .btn-success   { background: #198754; color: white; }
 .btn-danger    { background: #842029; color: white; }
+
+/* ВАРИАНТ А (текущий): secondary такой же синий как primary.
+   ВАРИАНТ Б: раскомментируй строку ниже если хочешь серый secondary */
 .btn-secondary { background: #0d6efd; color: white; }
+/* .btn-secondary { background: #2a2a4a; color: #aaa; } */
+
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Статус P2P */
@@ -86,44 +91,167 @@ input:focus, textarea:focus {
 .dot.green  { background: #51cf66; }
 .dot.red    { background: #ff6b6b; }
 
-/* Лог и сообщения */
-#log, .msg-list {
-    background: #0a0a14; border: 1px solid #2a2a4a;
-    border-radius: 6px; padding: 12px; max-height: 200px;
-    overflow-y: auto; font-family: monospace; font-size: 11px;
+/* ── Лог событий (P2P вкладка) ─────────────────────────── */
+/* max-height ограничивает высоту — иначе лог растянет страницу */
+#log {
+    background: #0a0a14;
+    border: 1px solid #2a2a4a;
+    border-radius: 6px;
+    padding: 12px;
+    max-height: 200px;
+    overflow-y: auto;       /* скролл внутри блока, не страницы */
+    font-family: monospace;
+    font-size: 11px;
 }
-.log-entry { margin: 2px 0; }
+.log-entry   { margin: 2px 0; }
 .log-info    { color: #00d9ff; }
 .log-success { color: #51cf66; }
 .log-error   { color: #ff6b6b; }
 
-.msg-item {
-    background: #0f0f1a; border: 1px solid #2a2a4a;
-    border-radius: 6px; padding: 12px; margin-bottom: 8px;
+/* ── Список сообщений ────────────────────────────────────── */
+/* Отдельный класс от #log — у чата другая высота и нет monospace */
+.msg-list {
+    background: #0a0a14;
+    border: 1px solid #2a2a4a;
+    border-radius: 6px;
+    padding: 12px;
+    /* ПОЧЕМУ 300px: достаточно для ~4-5 сообщений, не ломает layout */
+    max-height: 300px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;               /* расстояние между сообщениями */
 }
-.msg-item .from { color: #00d9ff; font-size: 11px; margin-bottom: 4px; }
 
-/* Навигация */
+/* ── Одно сообщение ──────────────────────────────────────── */
+.msg-item {
+    background: #0f0f1a;
+    border: 1px solid #2a2a4a;
+    border-radius: 6px;
+    padding: 10px 12px;
+    /* transition добавляет плавное появление при hover */
+    transition: border-color 0.15s;
+}
+.msg-item:hover {
+    /* Подсветка при наведении — даёт ощущение интерактивности */
+    border-color: #00d9ff33; /* 33 в конце = 20% прозрачность */
+}
+
+/* ── Шапка сообщения: отправитель слева, время справа ────── */
+/* Это классический паттерн flexbox: space-between разносит
+   два элемента по краям строки */
+.msg-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+/* Ключ отправителя */
+.msg-from {
+    color: #00d9ff;
+    font-size: 11px;
+    font-family: monospace;
+    /* cursor pointer намекает что можно кликнуть (в будущем — скопировать) */
+    cursor: default;
+}
+
+/* Время отправки — приглушённое, не главное */
+.msg-time {
+    color: #555;
+    font-size: 10px;
+    /* white-space: nowrap не даёт времени переноситься на новую строку */
+    white-space: nowrap;
+    margin-left: 8px;
+}
+
+/* Текст сообщения */
+.msg-body {
+    color: #ddd;
+    font-size: 13px;
+    line-height: 1.5;
+    /* pre-wrap сохраняет переносы строк если пользователь нажал Enter */
+    white-space: pre-wrap;
+    word-break: break-word; /* длинные слова/ключи не ломают layout */
+}
+
+/* ── Навигация (нижняя панель) ───────────────────────────── */
 nav {
-    background: #0f0f1a; border-top: 1px solid #2a2a4a;
-    display: flex; padding: 8px; gap: 8px;
+    background: #0f0f1a;
+    border-top: 1px solid #2a2a4a;
+    display: flex;
+    padding: 8px;
+    gap: 8px;
+    /* flex-shrink: 0 — навигация не сжимается когда контент большой */
+    flex-shrink: 0;
 }
 .nav-btn {
-    flex: 1; padding: 10px; border-radius: 6px; border: none;
-    background: transparent; color: #666; cursor: pointer;
+    flex: 1;
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
 }
+.nav-btn:hover { color: #aaa; }
 .nav-btn.active { background: #16213e; color: #00d9ff; }
 
-/* Мнемоника */
+/* ── Мнемоника ───────────────────────────────────────────── */
 .mnemonic-box {
-    background: #0f0f1a; border: 1px solid #198754;
-    padding: 14px; font-family: monospace; color: #75b798;
+    background: #0f0f1a;
+    border: 1px solid #198754;
+    padding: 14px;
+    font-family: monospace;
+    color: #75b798;
     word-break: break-all;
 }
-.pubkey-box {
-    display: block; background: #0f0f1a; padding: 10px;
-    border-radius: 6px; font-family: monospace; font-size: 11px;
-    word-break: break-all; margin-bottom: 10px;
-}
-.warning-box { border-color: #842029; background: #2a1215; color: #ea868f; }
 
+/* Публичный ключ — блочный элемент с переносом длинной строки */
+.pubkey-box {
+    display: block;
+    background: #0f0f1a;
+    padding: 10px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 11px;
+    word-break: break-all;
+    margin-bottom: 10px;
+}
+
+/* Блок с предупреждением (Panic Button) */
+.warning-box {
+    border-color: #842029;
+    background: #2a1215;
+    color: #ea868f;
+}
+
+/* ── Сетка слов мнемоники ────────────────────────────────── */
+.mnemonic-word {
+    background: #0f0f1a;
+    border: 1px solid #198754;
+    border-radius: 6px;
+    padding: 8px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #75b798;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+/* Порядковый номер слова — серый, не отвлекает */
+.mnemonic-word .num {
+    color: #555;
+    font-size: 10px;
+    min-width: 16px;
+}
+
+/* ── Счётчик сообщений и индикатор авто-обновления ─────── */
+/* Мелкий вспомогательный текст — не главный, но информативный */
+#msg-count,
+#msg-auto-indicator {
+    font-size: 11px;
+    color: #555;
+}

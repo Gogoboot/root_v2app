@@ -20,16 +20,45 @@ pub fn send_message(to_key: String, content: String) -> Result<u64, ApiError> {
 
     // 1. Сохраняем в БД
     let id = {
-        let mut state = APP_STATE.lock().map_err(|_| ApiError::StorageError("Lock poisoned".into()))?;
+        let mut state = APP_STATE.lock()
+            .map_err(|_| ApiError::StorageError("Lock poisoned".into()))?;
+
         let db = state.database.as_mut().ok_or(ApiError::DatabaseNotOpen)?;
         db.save_message(msg)
             .map_err(ApiError::from)?
     };
 
-    // 2. Отправляем в приватный P2P топик, если узел запущен
+    // 2. Отправляем в приватный P2P топик, если узел запущен иначе сохраняем локально
     {
-        // Получаем AppState (новый лок — предыдущий уже освобождён)
-        let state = APP_STATE.lock().map_err(|_| ApiError::StorageError("Lock poisoned".into()))?;
+        {
+            // Получаем AppState (новый лок — предыдущий уже освобождён)
+            let state = APP_STATE.lock()
+                .map_err(|_| ApiError::StorageError("Lock poisoned".into()))?;
+                
+            if let Some(sender) = state.p2p_sender.as_ref() {
+                // P2P запущен — отправляем в сеть
+                let identity = state.identity.as_ref()
+                    .ok_or(ApiError::IdentityNotInitialized)?;
+
+                let own_pubkey = identity.public_key_hex();
+                let topic = generate_topic_id(&own_pubkey, &to_key);
+
+                let message = P2pOutMessage {
+                    topic,
+                    content: content.clone(),
+                };
+
+                // try_send может упасть если канал переполнен — это не критично
+                // сообщение уже в БД, просто не ушло в сеть прямо сейчас
+                if let Err(e) = sender.try_send(message) {
+                    log::warn!("⚠️ P2P канал переполнен, сообщение только в БД: {}", e);
+                }
+            } else {
+                // P2P не запущен — это нормально, сообщение уже сохранено в БД
+                // в будущем: добавить очередь отложенной отправки
+                log::info!("📦 P2P не запущен — сообщение сохранено локально (id: {})", id);
+            }
+        }
         
         // Проверяем, что P2P запущен
         let sender = state.p2p_sender.as_ref()
@@ -38,6 +67,7 @@ pub fn send_message(to_key: String, content: String) -> Result<u64, ApiError> {
         // Получаем identity для вычисления топика
         let identity = state.identity.as_ref()
             .ok_or_else(|| ApiError::StorageError("Identity not initialized".into()))?;
+        
         
         // Вычисляем приватный топик: hash(sort(own_pubkey, to_key))
         let own_pubkey = identity.public_key_hex();

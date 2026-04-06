@@ -33,7 +33,14 @@ fn unlock_database(password: String, db_path: String) -> Result<bool, String> {
 
 #[tauri::command]
 fn panic_button() -> Result<(), String> {
-    root_ffi::api::database::panic_button().map_err(|e| e.to_string())
+    root_ffi::api::database::panic_button()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn lock_database() -> Result<(), String> {
+    root_ffi::api::database::lock_database()
+        .map_err(|e| e.to_string())
 }
 
 // ── P2P ──────────────────────────────────────────────────────
@@ -44,12 +51,14 @@ fn get_p2p_status() -> bool {
 
 #[tauri::command]
 fn start_p2p_node() -> Result<String, String> {
-    root_ffi::api::p2p::start_p2p_node().map_err(|e| e.to_string())
+    root_ffi::api::p2p::start_p2p_node()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn stop_p2p_node() -> Result<(), String> {
-    root_ffi::api::p2p::stop_p2p_node().map_err(|e| e.to_string())
+    root_ffi::api::p2p::stop_p2p_node()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -102,6 +111,7 @@ fn main() {
             get_public_key,
             unlock_database,
             panic_button,
+            lock_database,
             get_p2p_status,
             start_p2p_node,
             stop_p2p_node,

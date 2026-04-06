@@ -15,23 +15,19 @@ lazy_static::lazy_static! {
 
 /// Макрос проверки состояния приложения
 /// Возвращает InvalidState если текущая фаза не совпадает с ожидаемой
+// root-ffi/src/api/state.rs
 #[macro_export]
 macro_rules! require_state {
     ($($pat:pat_param)|+) => {{
-        let state = $crate::api::state::APP_STATE.lock().unwrap();
+        // ✅ Безопасная блокировка вместо unwrap()
+        let state = $crate::api::state::APP_STATE.lock()
+            .map_err(|_| $crate::api::types::ApiError::InternalError("mutex poisoned".into()))?;
+        
         if !matches!(state.phase, $($pat)|+) {
             return Err($crate::api::types::ApiError::InvalidState(
                 format!("Неверное состояние: {:?}", state.phase)
             ));
         }
-    }};
-}
-
-/// Удобный макрос для получения лока
-#[macro_export]
-macro_rules! with_state {
-    ($var:ident, $body:block) => {{
-        let mut $var = crate::api::state::APP_STATE.lock().unwrap();
-        $body
+        // ✅ MutexGuard автоматически освобождается при выходе из блока макроса
     }};
 }

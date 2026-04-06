@@ -1,6 +1,7 @@
 // ============================================================
 // root-core — AppState
 // Единое состояние приложения
+// root-core/src/state.rs
 // ============================================================
 
 use root_identity::Identity;
@@ -10,7 +11,7 @@ use root_economy::Ledger;
 
 /// Фаза жизненного цикла приложения
 /// Определяет какие операции разрешены в данный момент
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AppPhase {
     /// S0 — приложение только запущено, ничего не инициализировано
     Fresh,
@@ -94,6 +95,24 @@ impl AppState {
         }
         allowed
     }
+
+    /// Полный сброс состояния — как будто приложение только запустилось.
+    /// Используется при выходе из аккаунта.
+    pub fn reset(&mut self) {
+        // Дропаем P2P каналы — это остановит фоновые задачи
+        self.p2p_sender   = None;
+        self.p2p_shutdown = None;
+
+        // Очищаем все данные
+        self.phase           = AppPhase::Fresh;
+        self.identity        = None;
+        self.database        = None;
+        self.ledger          = None;
+        self.panic_activated = false;
+        self.peer_count      = 0;
+        self.incoming_queue  = Vec::new();
+    }   
+
 }
 
 impl Default for AppState {

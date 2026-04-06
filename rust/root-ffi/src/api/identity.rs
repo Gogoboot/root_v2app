@@ -55,8 +55,23 @@ pub fn generate_identity() -> Result<IdentityInfo, ApiError> {
         println!("  ✅ Identity сохранена в БД");
     }
 
-    // Обновляем фазу внутри того же lock
-    state.transition(AppPhase::Identified);
+    // ✅ Проверяем результат перехода
+    if !state.transition(AppPhase::Identified) {
+        return Err(ApiError::InternalError(
+            format!("Transition failed: {:?} → Identified", state.phase)
+        ));
+    }
+
+    // ✅ Если БД уже открыта — можно сразу перейти в Ready
+    if state.database.is_some() {
+        if !state.transition(AppPhase::Ready) {
+            return Err(ApiError::InternalError(
+                "Transition Identified → Ready failed".into()
+            ));
+        }
+        println!("  🔄 Phase: ... → Identified → Ready");
+
+    }
 
     println!("  ✅ Identity создана: {}...", &info.public_key[..16]);
     Ok(info)
@@ -89,6 +104,21 @@ pub fn restore_identity(mnemonic: String) -> Result<IdentityInfo, ApiError> {
     state.identity = Some(identity);
     state.ledger = Some(ledger);
 
+    // ✅ ДОБАВЛЕНО: Обновление фазы после восстановления!
+    let old_phase = state.phase.clone();
+    let target_phase = if state.database.is_some() {
+        AppPhase::Ready
+    } else {
+        AppPhase::Identified
+    };
+
+    if !state.transition(target_phase.clone()) {
+        return Err(ApiError::InternalError(
+            format!("Transition failed: {:?} → {:?}", old_phase, target_phase)
+        ));
+    }
+
+    println!("  🔄 Phase: {:?} → {:?}", old_phase, target_phase);
     println!("  ✅ Identity восстановлена: {}...", &info.public_key[..16]);
     Ok(info)
 }

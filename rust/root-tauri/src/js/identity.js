@@ -21,10 +21,21 @@ window.generateIdentity = async function() {
         const info = await invoke('generate_identity');
 
         // 4. Показываем мнемонику — только один раз
+        //    Показываем мнемонику в виде сетки
         if (info.mnemonic) {
-            document.getElementById('mnemonic-text').textContent = info.mnemonic;
+            const words = info.mnemonic.split(' ');
+            const grid  = document.getElementById('mnemonic-grid');
+
+            // Строим HTML для каждого слова с номером
+            grid.innerHTML = words.map((word, i) => `
+                <div class="mnemonic-word">
+                    <span class="num">${i + 1}.</span>
+                    <span>${word}</span>
+                </div>
+            `).join('');
+
             document.getElementById('mnemonic-display').style.display = 'block';
-            window.log('Аккаунт создан. Сохраните слова!', 'success');
+            window.log('Аккаунт создан. Запишите слова!', 'success');
         }
     } catch (e) {
         window.log('Ошибка создания: ' + e, 'error');

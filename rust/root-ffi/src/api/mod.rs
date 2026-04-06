@@ -61,8 +61,11 @@ impl RootApi {
     pub fn verify_db_integrity() -> Result<bool, ApiError> {
         database::verify_db_integrity()
     }
+
+    #[flutter_rust_bridge::frb(sync)]
     pub fn is_panic_activated() -> bool {
-        database::is_panic_activated()
+        crate::api::database::is_panic_activated()
+            .unwrap_or(false)  // Политика: при ошибке → "всё ок"
     }
 
     // ── Messaging ────────────────────────────────────────────

@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ROOT v2.0 — Desktop</title>
-    <!-- Подключаем стили -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -16,27 +15,34 @@
         <h1>🔐 ROOT v2.0</h1>
         <p class="subtitle">Децентрализованный мессенджер</p>
 
-        <!-- Вход в существующий аккаунт -->
         <section class="card">
             <h2>Вход</h2>
             <p>Введите пароль для разблокировки базы данных.</p>
-            
-            <!-- Пароль -->
-            <input type="password" id="db-password" placeholder="Пароль от базы данных">
-            
+
+            <input type="password" id="db-password" placeholder="Пароль от базы данных"
+                   onkeydown="if(event.key==='Enter') unlockDatabase()">
+
             <div class="btn-row">
                 <button class="btn btn-primary" onclick="unlockDatabase()">Войти</button>
                 <button class="btn btn-secondary" onclick="generateIdentity()">Создать новый аккаунт</button>
             </div>
-            
+
             <!-- Мнемоника (скрыта по умолчанию) -->
-            <div id="mnemonic-display" class="mnemonic-box" style="display: none; margin-top: 10px;">
-                <p>⚠️ СОХРАНИ ЭТИ СЛОВА:</p>
-                <code id="mnemonic-text"></code>
-                <button class="btn btn-success" style="margin-top:10px" onclick="closeMnemonicAndEnter()">Я сохранил</button>
+            <div id="mnemonic-display" style="display: none; margin-top: 10px;">
+                <p style="color: #ffab40; margin-bottom: 12px;">
+                    ⚠️ Запиши эти 24 слова — они показываются только один раз:
+                </p>
+                <div id="mnemonic-grid" style="
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 8px;
+                    margin-bottom: 16px;
+                "></div>
+                <button class="btn btn-success" onclick="closeMnemonicAndEnter()">
+                    ✅ Я записал все слова
+                </button>
             </div>
 
-            <!-- Лог ошибок на экране входа -->
             <div id="init-log" style="margin-top: 10px; color: #ff6b6b;"></div>
         </section>
     </div>
@@ -45,16 +51,17 @@
     <!-- ЭКРАН 2: ОСНОВНОЕ ПРИЛОЖЕНИЕ               -->
     <!-- ========================================== -->
     <div id="screen-app" class="screen">
-        
-        <!-- Вкладки -->
+
+        <!-- ВКЛАДКА: СЕТЬ -->
         <div id="tab-network" class="tab active">
             <h2>P2P Сеть</h2>
+
             <div class="status-badge" id="p2p-badge">
                 <span class="dot" id="p2p-dot"></span>
                 <span id="p2p-status-text">Остановлен</span>
             </div>
             <p><span id="peer-count-text">0 пиров</span></p>
-            
+
             <div class="btn-row">
                 <button class="btn btn-primary" onclick="startP2P()">▶ Запустить</button>
                 <button class="btn btn-danger" onclick="stopP2P()">⏹ Остановить</button>
@@ -70,37 +77,95 @@
             <div id="log"></div>
         </div>
 
+        <!-- ВКЛАДКА: ЧАТ -->
         <div id="tab-chat" class="tab" style="display: none;">
             <h2>Сообщения</h2>
+
+            <!-- Форма отправки -->
             <div class="card">
-                <input type="text" id="to-key" placeholder="Публичный ключ получателя">
-                <textarea id="msg-content" placeholder="Текст сообщения" rows="3"></textarea>
-                <button class="btn btn-primary" onclick="sendMessage()">Отправить</button>
+                <h3>Отправить</h3>
+
+                <!-- Поле получателя с кнопкой вставки своего ключа для тестов -->
+                <div style="position: relative;">
+                    <input type="text" id="to-key"
+                           placeholder="Публичный ключ получателя (hex)"
+                           style="padding-right: 110px;">
+                    <button class="btn btn-secondary"
+                            onclick="pasteMyKey()"
+                            style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+                                   padding: 4px 8px; font-size: 11px;">
+                        📋 Мой ключ
+                    </button>
+                </div>
+
+                <textarea id="msg-content"
+                          placeholder="Текст сообщения..."
+                          rows="3"
+                          onkeydown="if(event.ctrlKey && event.key==='Enter') sendMessage()"></textarea>
+
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button class="btn btn-primary" onclick="sendMessage()">
+                        ✉️ Отправить
+                    </button>
+                    <span style="font-size: 11px; color: #555;">Ctrl+Enter для отправки</span>
+                </div>
             </div>
 
+            <!-- Входящие сообщения -->
             <div class="card">
-                <h3>Входящие</h3>
-                <button class="btn btn-secondary" onclick="loadMessages()">↻ Обновить</button>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <h3 style="margin: 0;">📥 Входящие</h3>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <!-- Индикатор автообновления -->
+                        <span id="msg-auto-indicator" style="font-size: 11px; color: #555;">
+                            авто: вкл
+                        </span>
+                        <button class="btn btn-secondary" onclick="loadMessages()" style="padding: 4px 10px;">
+                            ↻ Обновить
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Счётчик сообщений -->
+                <div id="msg-count" style="font-size: 11px; color: #555; margin-bottom: 6px;"></div>
+
                 <div id="msg-list" class="msg-list">
-                    <p>Нет сообщений</p>
+                    <p style="color: #555; text-align: center; padding: 20px 0;">Нет сообщений</p>
                 </div>
             </div>
         </div>
 
+        <!-- ВКЛАДКА: НАСТРОЙКИ -->
         <div id="tab-settings" class="tab" style="display: none;">
             <h2>Настройки</h2>
+
+            <!-- Идентичность -->
             <div class="card">
                 <h3>Идентичность</h3>
+                <p style="font-size: 12px; color: #888; margin-bottom: 4px;">Ваш публичный ключ:</p>
                 <code id="settings-pubkey" class="pubkey-box">—</code>
+                <button class="btn btn-secondary" onclick="copySettingsPubkey()" style="margin-top: 8px;">
+                    Скопировать ключ
+                </button>
             </div>
-            
+
+            <!-- Выход из аккаунта -->
+            <div class="card">
+                <h3>🔒 Выход</h3>
+                <p>Закрыть базу данных и вернуться на экран входа.<br>
+                   <span style="font-size: 12px; color: #888;">Данные останутся сохранены.</span>
+                </p>
+                <button class="btn btn-secondary" onclick="logout()">Выйти из аккаунта</button>
+            </div>
+
+            <!-- Panic Button -->
             <div class="card warning-box">
                 <h3>⚠️ Panic Button</h3>
                 <p>Уничтожает все данные безвозвратно.</p>
                 <button class="btn btn-danger" onclick="panicButton()">💣 Уничтожить данные</button>
             </div>
-            
-            <p id="version-text">Версия: ...</p>
+
+            <p id="version-text" style="color: #555; font-size: 12px; margin-top: 16px;">Версия: ...</p>
         </div>
 
         <!-- Нижняя навигация -->
@@ -111,10 +176,6 @@
         </nav>
     </div>
 
-    <!-- 
-      ВАЖНО: type="module" позволяет использовать import/export.
-      Без этого Tauri API не подключится. 
-    -->
     <script src="js/main.js"></script>
     <script src="js/database.js"></script>
     <script src="js/identity.js"></script>
