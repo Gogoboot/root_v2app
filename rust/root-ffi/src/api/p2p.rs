@@ -56,18 +56,42 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
 
                 // Основной цикл: читаем входящие сообщения
                 while let Some(msg) = rx_in.recv().await {
-                    APP_STATE
-                        .lock()
-                        .unwrap()
-                        .incoming_queue
-                        .push(IncomingMessage {
-                            from_peer: msg.from_peer,
-                            content: msg.content,
-                            timestamp: std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_secs(),
-                        });
+                    // Шаг 1: берём лок, забираем только нужные данные, сразу отпускаем
+                    let (my_key, has_db) = {
+                        let state = APP_STATE.lock().unwrap();
+                        let key = state
+                            .identity
+                            .as_ref()
+                            .map(|id| id.public_key_hex())
+                            .unwrap_or_default();
+                        let has_db = state.database.is_some();
+                        (key, has_db) // лок отпускается здесь автоматически
+                    };
+
+                    if !has_db || my_key.is_empty() {
+                        log::warn!("⚠️ БД не открыта — входящее сообщение потеряно");
+                        continue;
+                    }
+
+                    // Шаг 2: берём лок снова только для сохранения
+                    let message = root_storage::Message::new(
+                        msg.from_peer.clone(),
+                        my_key,
+                        msg.content.clone(),
+                    );
+
+                    let mut state = APP_STATE.lock().unwrap();
+                    if let Some(db) = state.database.as_mut() {
+                        if let Err(e) = db.save_message(message) {
+                            log::error!("❌ Не удалось сохранить входящее сообщение: {}", e);
+                        } else {
+                            log::info!(
+                                "📨 Сохранено от: {}...",
+                                &msg.from_peer[..8.min(msg.from_peer.len())]
+                            );
+                        }
+                    }
+                    // лок отпускается здесь
                 }
 
                 // Цикл завершился — P2P остановлен, возвращаемся в Ready
@@ -131,18 +155,31 @@ pub fn is_p2p_running() -> bool {
 }
 
 pub fn get_incoming_messages() -> Vec<MessageInfo> {
-    let mut state = APP_STATE.lock().unwrap();
-    state
-        .incoming_queue
-        .drain(..)
+    let state = APP_STATE.lock().unwrap();
+
+    // Получаем свой ключ
+    let my_key = match state.identity.as_ref() {
+        Some(id) => id.public_key_hex(),
+        None => return vec![],
+    };
+
+    // Читаем из БД — все сообщения где я участник
+    let db = match state.database.as_ref() {
+        Some(db) => db,
+        None => return vec![],
+    };
+
+    db.get_messages(&my_key, 0, 50)
+        .unwrap_or_default()
+        .into_iter()
         .map(|m| MessageInfo {
-            id: 0, // TODO: добавить id в IncomingMessage или генерировать
-            from_key: m.from_peer,
-            to_key: String::new(), // TODO: добавить to_peer в IncomingMessage
+            id: m.id.unwrap_or(0),
+            from_key: m.from_key,
+            to_key: m.to_key,
             content: m.content,
             timestamp: m.timestamp,
-            is_read: false,
-            from_name: None, // TODO: подставлять имя из контактов
+            is_read: m.is_read,
+            from_name: None,
         })
         .collect()
 }

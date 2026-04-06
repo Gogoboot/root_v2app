@@ -22,73 +22,41 @@ pub fn send_message(to_key: String, content: String) -> Result<u64, ApiError> {
     let id = {
         let mut state = APP_STATE.lock()
             .map_err(|_| ApiError::StorageError("Lock poisoned".into()))?;
-
         let db = state.database.as_mut().ok_or(ApiError::DatabaseNotOpen)?;
-        db.save_message(msg)
-            .map_err(ApiError::from)?
-    };
+        db.save_message(msg).map_err(ApiError::from)?
+    }; // ← state освобождается здесь
 
-    // 2. Отправляем в приватный P2P топик, если узел запущен иначе сохраняем локально
+    // 2. Отправляем в P2P если запущен — иначе сообщение остаётся только в БД
     {
-        {
-            // Получаем AppState (новый лок — предыдущий уже освобождён)
-            let state = APP_STATE.lock()
-                .map_err(|_| ApiError::StorageError("Lock poisoned".into()))?;
-                
-            if let Some(sender) = state.p2p_sender.as_ref() {
-                // P2P запущен — отправляем в сеть
-                let identity = state.identity.as_ref()
-                    .ok_or(ApiError::IdentityNotInitialized)?;
+        let state = APP_STATE.lock()
+            .map_err(|_| ApiError::StorageError("Lock poisoned".into()))?;
 
-                let own_pubkey = identity.public_key_hex();
-                let topic = generate_topic_id(&own_pubkey, &to_key);
+        if let Some(sender) = state.p2p_sender.as_ref() {
+            // P2P запущен — вычисляем топик и отправляем
+            let identity = state.identity.as_ref()
+                .ok_or(ApiError::IdentityNotInitialized)?;
 
-                let message = P2pOutMessage {
-                    topic,
-                    content: content.clone(),
-                };
+            let own_pubkey = identity.public_key_hex();
+            let topic = generate_topic_id(&own_pubkey, &to_key);
 
-                // try_send может упасть если канал переполнен — это не критично
-                // сообщение уже в БД, просто не ушло в сеть прямо сейчас
-                if let Err(e) = sender.try_send(message) {
-                    log::warn!("⚠️ P2P канал переполнен, сообщение только в БД: {}", e);
-                }
-            } else {
-                // P2P не запущен — это нормально, сообщение уже сохранено в БД
-                // в будущем: добавить очередь отложенной отправки
-                log::info!("📦 P2P не запущен — сообщение сохранено локально (id: {})", id);
+            let message = P2pOutMessage {
+                topic,
+                content: content.clone(),
+            };
+
+            // Канал переполнен — не критично, сообщение уже в БД
+            if let Err(e) = sender.try_send(message) {
+                log::warn!("⚠️ P2P канал переполнен, сообщение только в БД: {}", e);
             }
+        } else {
+            // P2P не запущен — нормальная ситуация для офлайн режима
+            log::info!("📦 P2P не запущен — сообщение сохранено локально (id: {})", id);
         }
-        
-        // Проверяем, что P2P запущен
-        let sender = state.p2p_sender.as_ref()
-            .ok_or_else(|| ApiError::StorageError("P2P узел не запущен".into()))?;
-        
-        // Получаем identity для вычисления топика
-        let identity = state.identity.as_ref()
-            .ok_or_else(|| ApiError::StorageError("Identity not initialized".into()))?;
-        
-        
-        // Вычисляем приватный топик: hash(sort(own_pubkey, to_key))
-        let own_pubkey = identity.public_key_hex();
-        let topic = generate_topic_id(&own_pubkey, &to_key);  // ← to_key, не recipient_pubkey!
-        
-        // Конструируем P2pOutMessage
-        let message = P2pOutMessage {
-            topic,              // ← приватный топик (хеш пары ключей)
-            content: content.clone(),  // ← content, не payload!
-        };
-        
-        // Отправляем в сеть
-        sender.try_send(message)
-            .map_err(|e| ApiError::StorageError(format!("{}", e)))?;
-    }
+    } // ← state освобождается здесь
 
-    // ✅ Заменили println! на log::info! (задача S-4 из Спринта 5)
     log::info!("✉️ Сообщение #{} сохранено и отправлено", id);
     Ok(id)
 }
-
 
 
 pub fn get_messages() -> Result<Vec<MessageInfo>, ApiError> {
