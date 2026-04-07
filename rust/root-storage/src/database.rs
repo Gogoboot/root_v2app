@@ -248,6 +248,10 @@ impl Database {
                 id INTEGER PRIMARY KEY,
                 value TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
 
             -- ✅ Уникальный индекс на nickname
             CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_nickname ON contacts(nickname);
@@ -568,6 +572,50 @@ impl Database {
         // ✅ Коммит успешен — данные сохранены в БД
         //    self.merkle уже обновлён (до коммита), всё синхронизировано
         Ok(id)
+    }
+
+    /// Читает значение настройки по ключу.
+    ///
+    /// Возвращает `Ok(None)` если настройка ещё не задана — это нормально,
+    /// не ошибка. Например `mnemonic_confirmed` будет `None` на первом запуске.
+    pub fn get_setting(&self, key: &str) -> Result<Option<String>, StorageError> {
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
+        let conn = self.conn()?;
+        let mut stmt = conn
+            .prepare("SELECT value FROM settings WHERE key = ?1")
+            .map_err(StorageError::Database)?;
+        let mut rows = stmt.query(params![key]).map_err(StorageError::Database)?;
+
+        if let Some(row) = rows.next().map_err(StorageError::Database)? {
+            let value: String = row.get(0).map_err(StorageError::Database)?;
+            Ok(Some(value))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Сохраняет значение настройки по ключу.
+    ///
+    /// Использует INSERT OR REPLACE — перезаписывает если ключ уже существует.
+    ///
+    /// # Пример
+    ///
+    /// ```rust
+    /// db.set_setting("mnemonic_confirmed", "true")?;
+    /// ```
+    pub fn set_setting(&self, key: &str, value: &str) -> Result<(), StorageError> {
+        if self.panicked {
+            return Err(StorageError::PanicButtonActivated);
+        }
+        self.conn()?
+            .execute(
+                "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
+                params![key, value],
+            )
+            .map_err(StorageError::Database)?;
+        Ok(())
     }
 
     pub fn panic_destroy(&mut self) -> Result<(), StorageError> {
