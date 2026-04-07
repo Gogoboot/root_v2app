@@ -40,7 +40,7 @@ pub async fn start_node() -> Result<(), Box<dyn std::error::Error>> {
 
     let topic = gossipsub::IdentTopic::new(ROOT_TOPIC);
     swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
-    swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
+    swarm.listen_on("/ip4/0.0.0.0/tcp/8080".parse()?)?;
 
     info!("👂 Слушаем входящие соединения...");
 

@@ -11,7 +11,6 @@ pub mod seed;
 pub mod shamir;
 pub mod error;  // ← новый модуль
 
-
 pub use constants::{BIP39_PREFIX, DERIVATION_INDEX};
 pub use error::IdentityError;
 pub use keys::Identity;

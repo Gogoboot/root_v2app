@@ -20,23 +20,17 @@ pub fn generate_identity() -> Result<IdentityInfo, ApiError> {
 
     let info = IdentityInfo {
         public_key: pubkey_hex.clone(),
-        mnemonic: Some(mnemonic_str.clone()), // обычная String
-        //mnemonic: Some(Zeroizing::new(mnemonic_str.clone())),
+        mnemonic: Some(mnemonic_str.clone()),
         network: crate::NETWORK_ID.to_string(),
     };
 
     let mut ledger = Ledger::new();
     ledger.get_or_create(&pubkey_hex);
 
-    // Один lock — всё делаем внутри одного блока.
-    // Два lock() на одном мьютексе в одном потоке = дедлок.
     let mut state = APP_STATE.lock()
         .map_err(|_| ApiError::InternalError("mutex poisoned".into()))?;
 
     // ─── Проверка: аккаунт уже существует ────────────────────────────────
-    // Если identity уже есть в БД — запрещаем создавать новую.
-    // Иначе старая мнемоника будет перезаписана и старые сообщения
-    // станут нечитаемы (они зашифрованы старым ключом).
     if let Some(db) = state.database.as_ref() {
         if let Ok(Some(_)) = db.load_identity() {
             return Err(ApiError::InvalidInput(
@@ -44,25 +38,29 @@ pub fn generate_identity() -> Result<IdentityInfo, ApiError> {
             ));
         }
     }
-    // ─────────────────────────────────────────────────────────────────────
 
     state.identity = Some(identity);
     state.ledger = Some(ledger);
 
     if let Some(db) = state.database.as_ref() {
+        // Сохраняем ключи и мнемонику
         db.save_identity(&pubkey_hex, &mnemonic_str)
             .map_err(|e| ApiError::StorageError(e.to_string()))?;
         println!("  ✅ Identity сохранена в БД");
+
+        // Помечаем мнемонику как НЕ подтверждённую.
+        // Станет "true" только когда пользователь нажмёт "Я записал".
+        db.set_setting("mnemonic_confirmed", "false")
+            .map_err(|e| ApiError::StorageError(e.to_string()))?;
+        println!("  ⚠️  mnemonic_confirmed = false");
     }
 
-    // ✅ Проверяем результат перехода
     if !state.transition(AppPhase::Identified) {
         return Err(ApiError::InternalError(
             format!("Transition failed: {:?} → Identified", state.phase)
         ));
     }
 
-    // ✅ Если БД уже открыта — можно сразу перейти в Ready
     if state.database.is_some() {
         if !state.transition(AppPhase::Ready) {
             return Err(ApiError::InternalError(
@@ -70,11 +68,28 @@ pub fn generate_identity() -> Result<IdentityInfo, ApiError> {
             ));
         }
         println!("  🔄 Phase: ... → Identified → Ready");
-
     }
 
     println!("  ✅ Identity создана: {}...", &info.public_key[..16]);
     Ok(info)
+}
+
+/// Подтверждает что пользователь записал мнемонику.
+///
+/// Вызывается из JS когда пользователь нажимает "Я записал все слова".
+/// После этого при следующем входе мнемоника показана не будет.
+pub fn confirm_mnemonic() -> Result<(), ApiError> {
+    let state = APP_STATE.lock()
+        .map_err(|_| ApiError::InternalError("mutex poisoned".into()))?;
+
+    let db = state.database.as_ref()
+        .ok_or(ApiError::DatabaseNotOpen)?;
+
+    db.set_setting("mnemonic_confirmed", "true")
+        .map_err(|e| ApiError::StorageError(e.to_string()))?;
+
+    println!("  ✅ mnemonic_confirmed = true");
+    Ok(())
 }
 
 pub fn restore_identity(mnemonic: String) -> Result<IdentityInfo, ApiError> {
@@ -104,7 +119,14 @@ pub fn restore_identity(mnemonic: String) -> Result<IdentityInfo, ApiError> {
     state.identity = Some(identity);
     state.ledger = Some(ledger);
 
-    // ✅ ДОБАВЛЕНО: Обновление фазы после восстановления!
+    // При восстановлении мнемоника уже известна пользователю —
+    // сразу помечаем как подтверждённую
+    if let Some(db) = state.database.as_ref() {
+        db.set_setting("mnemonic_confirmed", "true")
+            .map_err(|e| ApiError::StorageError(e.to_string()))?;
+        println!("  ✅ mnemonic_confirmed = true (восстановление)");
+    }
+
     let old_phase = state.phase.clone();
     let target_phase = if state.database.is_some() {
         AppPhase::Ready

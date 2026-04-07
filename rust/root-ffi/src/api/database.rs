@@ -1,24 +1,34 @@
 // ============================================================
-// ROOT v2.0 — api/database.rs
+// ROOT v2.0 — api/src/database.rs
 // FFI функции: открытие БД, Panic Button
 // ============================================================
 
 use super::state::APP_STATE;
-use super::types::ApiError;
+use super::types::{ApiError, UnlockResult};
 use root_identity::Identity;
 use root_storage::Database;
 use zeroize::Zeroizing;
-use crate::require_state;              // ← Добавлено
-use root_core::state::AppPhase;        // ← Добавлено
+use crate::require_state;
+use root_core::state::AppPhase;
 
-pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiError> {
+/// Открывает базу данных и проверяет статус аккаунта.
+///
+/// # Сценарии
+///
+/// - `status: "ok"` — всё хорошо, входим в приложение
+/// - `status: "mnemonic_pending"` — мнемоника не была подтверждена,
+///   показываем экран мнемоники снова вместе с самой мнемоникой
+///
+/// # Ошибки
+///
+/// - Неверный пароль → `Err(ApiError::StorageError)`
+/// - Panic активирован → `Err(ApiError::PanicActivated)`
+pub fn unlock_database(password: String, db_path: String) -> Result<UnlockResult, ApiError> {
     let password = Zeroizing::new(password);
 
-    let current_dir = std::env::current_dir().unwrap_or_default();
-    println!("  📁 Рабочая папка: {:?}", current_dir);
     println!("  📂 Путь к БД: {}", db_path);
 
-    // ✅ Безопасная проверка panic
+    // Проверяем panic до открытия БД
     {
         let state = APP_STATE.lock()
             .map_err(|_| ApiError::InternalError("mutex poisoned".into()))?;
@@ -27,55 +37,104 @@ pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiErr
         }
     }
 
+    // Открываем БД и инициализируем таблицы
     let mut db = Database::open(&db_path, &password)
         .map_err(ApiError::from)?;
 
     db.initialize().map_err(ApiError::from)?;
-    println!("  ✅ Таблицы созданы");
+    println!("  ✅ Таблицы инициализированы");
 
     let mut state = APP_STATE.lock()
         .map_err(|_| ApiError::InternalError("mutex poisoned".into()))?;
 
-    if let Ok(Some((_, mnemonic_str))) = db.load_identity() {
+    // Загружаем identity из БД если есть
+    let mut public_key: Option<String> = None;
+
+    if let Ok(Some((pubkey, mnemonic_str))) = db.load_identity() {
         use bip39::Mnemonic;
-        let mnemonic = Zeroizing::new(mnemonic_str);
+        let mnemonic = Zeroizing::new(mnemonic_str.clone());
         if let Ok(parsed) = mnemonic.parse::<Mnemonic>() {
             if let Ok(identity) = Identity::from_mnemonic(&parsed, "") {
                 state.identity = Some(identity);
+                public_key = Some(pubkey.clone());
+                println!("  ✅ Identity загружена из БД");
             }
         }
-        println!("  ✅ Identity загружена из БД");
+
+        // ── Проверяем флаг подтверждения мнемоники ──────────────────────
+        // Читаем настройку ДО того как сохраняем db в state,
+        // потому что после move db будет недоступна.
+        let confirmed = db.get_setting("mnemonic_confirmed")
+            .unwrap_or(None)
+            .map(|v| v == "true")
+            .unwrap_or(false); // если настройки нет — считаем не подтверждено
+
+        // Обновляем фазы
+        if !state.transition(AppPhase::DbOpen) {
+            return Err(ApiError::InternalError(
+                format!("Transition failed: {:?} → DbOpen", state.phase)
+            ));
+        }
+        if state.identity.is_some() {
+            if !state.transition(AppPhase::Ready) {
+                return Err(ApiError::InternalError(
+                    "Transition failed: DbOpen → Ready".into()
+                ));
+            }
+            println!("  🔄 Phase: ... → DbOpen → Ready");
+        }
+
+        state.database = Some(db);
+
+        // ── Возвращаем результат в зависимости от флага ─────────────────
+        if !confirmed {
+            // Сценарий 2 — мнемоника не подтверждена, показываем снова
+            println!("  🔍 DEBUG: Returning mnemonic_pending | confirmed={}, mnemonic_len={}", //** */
+            confirmed, mnemonic_str.len());  // ← ЛОГ 1 ******
+            println!("  ⚠️  Мнемоника не подтверждена — возвращаем на экран мнемоники");
+            return Ok(UnlockResult {
+                status: "mnemonic_pending".to_string(),
+                public_key,
+                mnemonic: Some(mnemonic_str),
+            });
+        }
+
+        // Сценарий 3 — обычный вход, всё подтверждено
+        println!("  ✅ База данных разблокирована: {}", db_path);
+        println!("  🔍 DEBUG: Returning ok (confirmed) | confirmed={}", confirmed);  // ← ЛОГ 2*****
+        return Ok(UnlockResult {
+            status: "ok".to_string(),
+            public_key,
+            mnemonic: None,
+        });
     }
 
-    // ✅ Поэтапный переход (уже правильно!)
+    // Identity в БД нет — первый запуск или чистая установка
+    // Переходим в DbOpen, identity будет создана через generate_identity()
     if !state.transition(AppPhase::DbOpen) {
         return Err(ApiError::InternalError(
             format!("Transition failed: {:?} → DbOpen", state.phase)
         ));
     }
-    
-    if state.identity.is_some() {
-        if !state.transition(AppPhase::Ready) {
-            return Err(ApiError::InternalError(
-                "Transition failed: DbOpen → Ready".into()
-            ));
-        }
-        println!("  🔄 Phase: ... → DbOpen → Ready");
-    } else {
-        println!("  🔄 Phase: ... → DbOpen (identity pending)");
-    }
+    println!("  🔄 Phase: ... → DbOpen (identity pending)");
 
     state.database = Some(db);
     println!("  ✅ База данных разблокирована: {}", db_path);
-    Ok(true)
+    println!("  DEBUG: Returning ok (no identity) | db_has_identity=false");  // ← ЛОГ 3******
+
+    Ok(UnlockResult {
+        status: "ok".to_string(),
+        public_key: None,
+        mnemonic: None,
+    })
 }
 
 pub fn panic_button() -> Result<(), ApiError> {
     println!("  💣 PANIC BUTTON — уничтожение данных...");
-    
+
     let mut state = APP_STATE.lock()
         .map_err(|_| ApiError::InternalError("mutex poisoned".into()))?;
-    
+
     state.panic_activated = true;
 
     if let Some(shutdown) = state.p2p_shutdown.take() {
@@ -89,51 +148,40 @@ pub fn panic_button() -> Result<(), ApiError> {
     }
 
     state.identity = None;
-    state.ledger = None;
+    state.ledger   = None;
     state.database = None;
 
     println!("  ✅ Все данные уничтожены. Перезапусти приложение.");
-    Ok(())  // ← Успешное выполнение
+    Ok(())
 }
 
 pub fn verify_db_integrity() -> Result<bool, ApiError> {
-    require_state!(AppPhase::Ready | AppPhase::P2PActive);  // ← Добавлено
-    
+    require_state!(AppPhase::Ready | AppPhase::P2PActive);
+
     let state = APP_STATE.lock()
         .map_err(|_| ApiError::InternalError("mutex poisoned".into()))?;
-    
+
     let db = state.database.as_ref()
         .ok_or(ApiError::DatabaseNotOpen)?;
-    
+
     db.verify_integrity().map_err(ApiError::from)
 }
 
-/// Проверяет, активирован ли PanicButton
-/// 
-/// # Returns
-/// * `Ok(true)` — panic активирован
-/// * `Ok(false)` — panic не активирован  
-/// * `Err(ApiError::InternalError)` — критическая ошибка (mutex poisoned)
-pub fn is_panic_activated() -> Result<bool, ApiError> {  // ← Изменён возврат на Result
+pub fn is_panic_activated() -> Result<bool, ApiError> {
     let state = APP_STATE.lock()
         .map_err(|_| ApiError::InternalError("mutex poisoned".into()))?;
     Ok(state.panic_activated)
 }
 
-/// Выход из аккаунта — сбрасывает всё состояние обратно в Fresh.
-/// Вызывается из UI при нажатии "Выйти из аккаунта".
 pub fn lock_database() -> Result<(), ApiError> {
     let mut state = APP_STATE.lock()
         .map_err(|_| ApiError::InternalError("mutex poisoned".into()))?;
 
-    // Останавливаем P2P если запущен — дропаем каналы
-    // Это сигнализирует фоновому потоку что нужно завершиться
     if let Some(shutdown) = state.p2p_shutdown.take() {
         let _ = shutdown.send(());
     }
     state.p2p_sender = None;
 
-    // Полный сброс — как будто приложение только запустилось
     state.reset();
 
     println!("  🔒 База данных закрыта, состояние сброшено в Fresh");

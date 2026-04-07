@@ -82,6 +82,7 @@ impl AppState {
         let allowed = match (&self.phase, &new_phase) {
             (AppPhase::Fresh,      AppPhase::DbOpen)     => true,
             (AppPhase::Fresh,      AppPhase::Identified)  => true,
+            (AppPhase::DbOpen,     AppPhase::Identified) => true, 
             (AppPhase::DbOpen,     AppPhase::Ready)       => true,
             (AppPhase::Identified, AppPhase::Ready)       => true,
             (AppPhase::Ready,      AppPhase::P2PActive)   => true,

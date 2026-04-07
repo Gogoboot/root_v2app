@@ -18,6 +18,13 @@ fn get_public_key() -> Result<String, String> {
     root_ffi::api::identity::get_public_key().map_err(|e| e.to_string())
 }
 
+/// Подтверждает что пользователь записал мнемонику.
+/// Вызывается из JS при нажатии "Я записал все слова".
+#[tauri::command]
+fn confirm_mnemonic() -> Result<(), String> {
+    root_ffi::api::identity::confirm_mnemonic().map_err(|e| e.to_string())
+}
+
 // ── Database ─────────────────────────────────────────────────
 #[tauri::command]
 fn get_db_path(app: tauri::AppHandle) -> Result<String, String> {
@@ -25,8 +32,10 @@ fn get_db_path(app: tauri::AppHandle) -> Result<String, String> {
     Ok(dir.join("root.db").to_string_lossy().to_string())
 }
 
+// Возвращает UnlockResult вместо bool —
+// JS читает status и решает что показать пользователю
 #[tauri::command]
-fn unlock_database(password: String, db_path: String) -> Result<bool, String> {
+fn unlock_database(password: String, db_path: String) -> Result<root_ffi::api::types::UnlockResult, String> {
     root_ffi::api::database::unlock_database(password, db_path)
         .map_err(|e| e.to_string())
 }
@@ -94,10 +103,12 @@ fn main() {
     let _ = env_logger::try_init();
     log::info!("🚀 ROOT Desktop v2.0 starting...");
 
+    println!("🚀 TAURI APP STARTING (not CLI!)");  // ← Добавь это
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
-            // Гарантируем, что папка для БД существует до первого вызова
+            // Гарантируем что папка для БД существует до первого вызова
             let _ = app.path().app_data_dir()
                 .map(|p| std::fs::create_dir_all(p).ok());
             Ok(())
@@ -109,6 +120,7 @@ fn main() {
             generate_identity,
             restore_identity,
             get_public_key,
+            confirm_mnemonic,
             unlock_database,
             panic_button,
             lock_database,

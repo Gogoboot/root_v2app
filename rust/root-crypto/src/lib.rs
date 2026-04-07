@@ -13,8 +13,8 @@ pub mod constants;
 
 // ✅ Экспортируем ошибку, чтобы другие крейты могли её использовать
 pub mod error;
-
 pub use error::CryptoError;
+
 
 pub use argon::{derive_key, wipe_password};
 pub use asymmetric::{
@@ -25,8 +25,6 @@ pub use asymmetric::{
 };
 pub use symmetric::{decrypt, encrypt, pack_for_storage, unpack_from_storage};
 pub use types::{CryptoNonce, EncryptedBlob, Salt, SecureKey};
-
-
 
 #[cfg(test)]
 mod tests {

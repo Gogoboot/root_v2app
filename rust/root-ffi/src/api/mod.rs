@@ -26,7 +26,7 @@ pub mod utils;
 
 // ── Реэкспорт ────────────────────────────────────────────────
 pub use types::{
-    ApiError, BalanceInfo, IdentityInfo, MessageInfo, NodeStatus, P2pWarning, TxResult, VestingInfo,
+    ApiError, BalanceInfo, IdentityInfo, MessageInfo, NodeStatus, P2pWarning, TxResult, VestingInfo,UnlockResult,
 };
 
 // ── Единая точка входа для flutter_rust_bridge ───────────────
@@ -52,7 +52,7 @@ impl RootApi {
     }
 
     // ── Database ─────────────────────────────────────────────
-    pub fn unlock_database(password: String, db_path: String) -> Result<bool, ApiError> {
+    pub fn unlock_database(password: String, db_path: String) -> Result<UnlockResult, ApiError> {
         database::unlock_database(password, db_path)
     }
     pub fn panic_button() -> Result<(), ApiError> {
