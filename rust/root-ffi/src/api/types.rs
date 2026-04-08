@@ -95,7 +95,6 @@ pub struct IdentityInfo {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[flutter_rust_bridge::frb]
 pub struct UnlockResult {
-    
     /// Статус: "ok" | "mnemonic_pending"
     pub status: String,
 
@@ -176,4 +175,16 @@ pub struct P2pWarning {
     pub safe_methods: Vec<String>,
     pub unsafe_methods: Vec<String>,
     pub message: String,
+}
+
+/// Активный пир — передаётся в UI для отображения списка соединений.
+/// Группировка и сортировка выполняются на стороне JS.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PeerInfoDto {
+    /// Полный PeerID строкой
+    pub peer_id: String,
+    /// Протокол: "TCP" | "WS" | "QUIC" | "mDNS"
+    pub protocol: String,
+    /// UNIX timestamp момента подключения — для сортировки в UI
+    pub connected_at: u64,
 }

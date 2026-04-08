@@ -1,19 +1,30 @@
 // ============================================================
-// ROOT v2.0 — root-ffi/src/api/p2p.rs
-// FFI функции: P2P сеть (исправлено: единый Runtime)
+// ROOT v2.0 — ffi/api/p2p.rs
+// P2P API — мост между Tauri командами и сетевым слоем
+//
+// Изменения:
+//   - p2p_sender теперь Sender<NodeCommand> вместо Sender<P2pOutMessage>
+//   - send_p2p_message отправляет NodeCommand::Publish
+//   - добавлен dial_node — ручное подключение по Multiaddr
+//   - добавлен get_peers — список активных пиров с протоколами
+//   - добавлены get_bootstrap_list / save_bootstrap_list
+//   - start_p2p_node читает bootstrap список и передаёт в start_node_channels
 // ============================================================
 
+use log::{info, error};
+
 use crate::api::state::APP_STATE;
-use crate::api::types::{ApiError, MessageInfo};
+use crate::api::types::{MessageInfo, PeerInfoDto, ApiError};
 use crate::require_state;
-use log::{error, info};
 use root_core::state::AppPhase;
-use root_core::state::IncomingMessage; // ✅ Правильный тип из root_core
-use root_network::{P2pOutMessage, generate_topic_id}; // ← Оба импорта!
+use root_network::channels::{NodeCommand, start_node_channels};
+
+// ── Запуск / остановка ───────────────────────────────────────
 
 pub fn start_p2p_node() -> Result<String, ApiError> {
-    require_state!(root_core::state::AppPhase::Ready);
+    require_state!(AppPhase::Ready);
 
+    // Берём key_bytes из identity
     let key_bytes: [u8; 32] = {
         let state = APP_STATE
             .lock()
@@ -28,44 +39,63 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
         bytes
     };
 
+    // Читаем bootstrap список из БД
+    // Если БД недоступна или список пуст — стартуем без bootstrap (только mDNS)
+    let bootstrap_addrs: Vec<String> = {
+        let state = APP_STATE
+            .lock()
+            .map_err(|_| ApiError::StorageError("AppState lock poisoned".into()))?;
+        if let Some(db) = state.database.as_ref() {
+            db.get_setting("bootstrap_addrs")
+                .unwrap_or(None)
+                .map(|json: String| {
+                    serde_json::from_str::<Vec<String>>(&json).unwrap_or_default()
+                })
+                .unwrap_or_default()
+        } else {
+            vec![]
+        }
+    };
+
+    info!("  🔗 Bootstrap адресов: {}", bootstrap_addrs.len());
+
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
 
     let handle = tokio::runtime::Handle::try_current()
         .unwrap_or_else(|_| crate::runtime::APP_RUNTIME.handle().clone());
 
     handle.spawn(async move {
-        match root_network::channels::start_node_channels(key_bytes, shutdown_rx).await {
-            Ok((tx_out, mut rx_in, mut rx_peer_count)) => {
+        match start_node_channels(key_bytes, shutdown_rx, bootstrap_addrs).await {
+            Ok((tx_cmd, mut rx_in, mut rx_peers)) => {
                 {
                     let mut state = APP_STATE.lock().unwrap();
-                    state.p2p_sender = Some(tx_out);
+                    state.p2p_sender   = Some(tx_cmd);
                     state.p2p_shutdown = Some(shutdown_tx);
-
-                    // ✅ Переход ПОСЛЕ реального старта — не до
-                    // Раньше это было снаружи spawn — race condition
-                    state.transition(root_core::state::AppPhase::P2PActive);
+                    // Переход в P2PActive после реального старта — не до
+                    state.transition(AppPhase::P2PActive);
                 }
                 info!("✅ P2P узел запущен, фаза → P2PActive");
 
-                // Фоновый поток: обновляем счётчик пиров
+                // Фоновый таск: обновляем список пиров в state
                 tokio::spawn(async move {
-                    while let Some(count) = rx_peer_count.recv().await {
-                        APP_STATE.lock().unwrap().peer_count = count;
+                    while let Some(peers) = rx_peers.recv().await {
+                        let mut state = APP_STATE.lock().unwrap();
+                        state.peer_list  = peers.clone();
+                        state.peer_count = peers.len() as u32;
                     }
                 });
 
-                // Основной цикл: читаем входящие сообщения
+                // Основной цикл: читаем входящие сообщения и сохраняем в БД
                 while let Some(msg) = rx_in.recv().await {
-                    // Шаг 1: берём лок, забираем только нужные данные, сразу отпускаем
                     let (my_key, has_db) = {
                         let state = APP_STATE.lock().unwrap();
-                        let key = state
+                        let key: String = state
                             .identity
                             .as_ref()
-                            .map(|id| id.public_key_hex())
+                            .map(|id: &root_identity::Identity| id.public_key_hex())
                             .unwrap_or_default();
                         let has_db = state.database.is_some();
-                        (key, has_db) // лок отпускается здесь автоматически
+                        (key, has_db)
                     };
 
                     if !has_db || my_key.is_empty() {
@@ -73,7 +103,6 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
                         continue;
                     }
 
-                    // Шаг 2: берём лок снова только для сохранения
                     let message = root_storage::Message::new(
                         msg.from_peer.clone(),
                         my_key,
@@ -91,46 +120,52 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
                             );
                         }
                     }
-                    // лок отпускается здесь
                 }
 
-                // Цикл завершился — P2P остановлен, возвращаемся в Ready
-                APP_STATE
-                    .lock()
-                    .unwrap()
-                    .transition(root_core::state::AppPhase::Ready);
+                // Цикл завершился — возвращаемся в Ready
+                APP_STATE.lock().unwrap().transition(AppPhase::Ready);
                 info!("🛑 P2P узел остановлен, фаза → Ready");
             }
             Err(e) => {
-                // Запуск упал — фаза остаётся Ready, не P2PActive
                 error!("❌ Ошибка запуска P2P: {}", e);
-                // shutdown_tx дропается здесь автоматически — это нормально
             }
         }
     });
 
-    // ℹ️ Возвращаем успех — P2P запускается асинхронно
-    // Реальный переход в P2PActive произойдёт чуть позже внутри spawn
     Ok("p2p-node-starting".to_string())
 }
 
-// ✅ Исправленная функция:
+pub fn stop_p2p_node() -> Result<(), ApiError> {
+    let mut state = APP_STATE
+        .lock()
+        .map_err(|_| ApiError::StorageError("AppState lock poisoned".into()))?;
+
+    // Дропаем shutdown sender — нода получит сигнал и остановится
+    let _ = state.p2p_shutdown.take();
+    state.p2p_sender = None;
+    state.peer_list  = vec![];
+    state.peer_count = 0;
+
+    Ok(())
+}
+
+// ── Отправка сообщений ───────────────────────────────────────
+
 pub fn send_p2p_message(recipient_pubkey: String, content: String) -> Result<(), ApiError> {
     require_state!(AppPhase::Ready | AppPhase::P2PActive);
+
     let state = APP_STATE
         .lock()
         .map_err(|_| ApiError::StorageError("AppState lock poisoned".into()))?;
 
-    // 1. Получаем свою идентичность для вычисления топика
     let identity = state
         .identity
         .as_ref()
         .ok_or_else(|| ApiError::StorageError("Identity not initialized".into()))?;
 
-    // 2. Получаем свой публичный ключ (метод, который мы добавили в keys.rs)
     let own_pubkey = identity.public_key_hex();
 
-    // 3. Вычисляем приватный топик: hash(sort(own_pubkey, recipient_pubkey))
+    // Приватный топик: hash(sort(own_pubkey, recipient_pubkey))
     let topic = generate_topic_id(&own_pubkey, &recipient_pubkey);
 
     let sender = state
@@ -138,33 +173,115 @@ pub fn send_p2p_message(recipient_pubkey: String, content: String) -> Result<(),
         .as_ref()
         .ok_or_else(|| ApiError::StorageError("P2P узел не запущен".into()))?;
 
-    // 4. Конструируем P2pOutMessage с правильными полями
-    let message = P2pOutMessage {
-        topic,   // ← ✅ Приватный топик (хеш пары ключей)
-        content, // ← ✅ Текст сообщения
-    };
-
     sender
-        .try_send(message)
+        .try_send(NodeCommand::Publish { topic, content })
         .map_err(|e| ApiError::StorageError(format!("{}", e)))?;
+
     Ok(())
 }
+
+// ── Ручной диал ─────────────────────────────────────────────
+
+/// Подключиться к пиру по Multiaddr строке
+/// Пример: "/dns4/host.ngrok-free.app/tcp/443/wss/p2p/12D3..."
+pub fn dial_node(addr: String) -> Result<(), ApiError> {
+    require_state!(AppPhase::P2PActive);
+
+    let state = APP_STATE
+        .lock()
+        .map_err(|_| ApiError::StorageError("AppState lock poisoned".into()))?;
+
+    let sender = state
+        .p2p_sender
+        .as_ref()
+        .ok_or_else(|| ApiError::StorageError("P2P узел не запущен".into()))?;
+
+    sender
+        .try_send(NodeCommand::Dial(addr))
+        .map_err(|e| ApiError::StorageError(format!("{}", e)))?;
+
+    Ok(())
+}
+
+// ── Список пиров ─────────────────────────────────────────────
 
 pub fn is_p2p_running() -> bool {
     APP_STATE.lock().unwrap().p2p_sender.is_some()
 }
 
+pub fn get_peer_count() -> u32 {
+    APP_STATE.lock().unwrap().peer_count
+}
+
+/// Список активных пиров с протоколами — для UI вкладки Сеть
+pub fn get_peers() -> Vec<PeerInfoDto> {
+    APP_STATE
+        .lock()
+        .unwrap()
+        .peer_list
+        .iter()
+        .map(|p| PeerInfoDto {
+            peer_id:      p.peer_id.clone(),
+            protocol:     p.protocol.clone(),
+            connected_at: p.connected_at,
+        })
+        .collect()
+}
+
+// ── Bootstrap список ─────────────────────────────────────────
+
+/// Получить список bootstrap адресов из БД
+pub fn get_bootstrap_list() -> Result<Vec<String>, ApiError> {
+    let state = APP_STATE
+        .lock()
+        .map_err(|_| ApiError::StorageError("AppState lock poisoned".into()))?;
+
+    let db = state
+        .database
+        .as_ref()
+        .ok_or_else(|| ApiError::StorageError("БД не открыта".into()))?;
+
+    let list = db
+        .get_setting("bootstrap_addrs")
+        .unwrap_or(None)
+        .map(|json: String| serde_json::from_str::<Vec<String>>(&json).unwrap_or_default())
+        .unwrap_or_default();
+
+    Ok(list)
+}
+
+/// Сохранить список bootstrap адресов в БД
+pub fn save_bootstrap_list(addrs: Vec<String>) -> Result<(), ApiError> {
+    let state = APP_STATE
+        .lock()
+        .map_err(|_| ApiError::StorageError("AppState lock poisoned".into()))?;
+
+    let db = state
+        .database
+        .as_ref()
+        .ok_or_else(|| ApiError::StorageError("БД не открыта".into()))?;
+
+    let json = serde_json::to_string(&addrs)
+        .map_err(|e| ApiError::StorageError(format!("Сериализация: {}", e)))?;
+
+    db.set_setting("bootstrap_addrs", &json)
+        .map_err(|e: root_storage::StorageError| ApiError::StorageError(e.to_string()))?;
+
+    info!("  💾 Bootstrap список сохранён: {} адресов", addrs.len());
+    Ok(())
+}
+
+// ── Входящие сообщения ───────────────────────────────────────
+
 pub fn get_incoming_messages() -> Vec<MessageInfo> {
     let state = APP_STATE.lock().unwrap();
 
-    // Получаем свой ключ
-    let my_key = match state.identity.as_ref() {
+    let my_key: String = match state.identity.as_ref() {
         Some(id) => id.public_key_hex(),
         None => return vec![],
     };
 
-    // Читаем из БД — все сообщения где я участник
-    let db = match state.database.as_ref() {
+    let db: &root_storage::Database = match state.database.as_ref() {
         Some(db) => db,
         None => return vec![],
     };
@@ -173,33 +290,29 @@ pub fn get_incoming_messages() -> Vec<MessageInfo> {
         .unwrap_or_default()
         .into_iter()
         .map(|m| MessageInfo {
-            id: m.id.unwrap_or(0),
-            from_key: m.from_key,
-            to_key: m.to_key,
-            content: m.content,
+            id:        m.id.unwrap_or(0),
+            from_key:  m.from_key,
+            to_key:    m.to_key,
+            content:   m.content,
             timestamp: m.timestamp,
-            is_read: m.is_read,
+            is_read:   m.is_read,
             from_name: None,
         })
         .collect()
 }
 
-pub fn get_peer_count() -> u32 {
-    APP_STATE.lock().unwrap().peer_count
-}
+// ── Вспомогательные функции ──────────────────────────────────
 
-/// 🔴 НОВАЯ ФУНКЦИЯ: Корректная остановка P2P узла
-pub fn stop_p2p_node() -> Result<(), ApiError> {
-    require_state!(AppPhase::Ready | AppPhase::P2PActive);
-    let mut state = APP_STATE
-        .lock()
-        .map_err(|_| ApiError::StorageError("AppState lock poisoned".into()))?;
-
-    if let Some(tx) = state.p2p_shutdown.take() {
-        let _ = tx.send(()); // Игнорируем ошибку, если receiver уже упал
-        info!("🛑 Сигнал остановки P2P отправлен");
-    }
-
-    state.p2p_sender = None;
-    Ok(())
+/// Генерация детерминированного топика для приватного чата
+/// Сортируем ключи чтобы топик был одинаковым с обеих сторон
+fn generate_topic_id(key_a: &str, key_b: &str) -> String {
+    let mut keys = [key_a, key_b];
+    keys.sort();
+    let combined = format!("{}{}", keys[0], keys[1]);
+    // SHA-256 от отсортированной пары ключей
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    combined.hash(&mut hasher);
+    format!("priv-{:x}", hasher.finish())
 }

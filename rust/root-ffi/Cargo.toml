@@ -15,9 +15,9 @@ name = "root_ffi"
 crate-type = ["cdylib", "staticlib", "rlib"]
 path = "src/lib.rs"
 
-[[bin]]
-name = "root-cli"
-path = "src/cli/main.rs"
+# [[bin]]
+# name = "root-cli"
+# path = "src/cli/main.rs"
 
 [dependencies]
 # Уникальные для root-ffi

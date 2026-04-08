@@ -5,7 +5,7 @@
 // ============================================================
 
 use root_identity::Identity;
-use root_network::P2pOutMessage;
+use root_network::channels::{NodeCommand, PeerInfo}; // NodeCommand вместо P2pOutMessage
 use root_storage::Database;
 use root_economy::Ledger;
 
@@ -41,9 +41,10 @@ pub struct AppState {
     pub database:        Option<Database>,
     pub ledger:          Option<Ledger>,
     pub panic_activated: bool,
-    pub p2p_sender:      Option<tokio::sync::mpsc::Sender<P2pOutMessage>>,
+    pub p2p_sender:      Option<tokio::sync::mpsc::Sender<NodeCommand>>, // NodeCommand вместо P2pOutMessage
     pub p2p_shutdown:    Option<tokio::sync::oneshot::Sender<()>>,
     pub peer_count:      u32,
+    pub peer_list:       Vec<PeerInfo>, // плоский список активных пиров с протоколами
     pub incoming_queue:  Vec<IncomingMessage>,
 }
 
@@ -58,6 +59,7 @@ impl AppState {
             p2p_sender:      None,
             p2p_shutdown:    None,
             peer_count:      0,
+            peer_list:       Vec::new(),
             incoming_queue:  Vec::new(),
         }
     }
@@ -82,7 +84,7 @@ impl AppState {
         let allowed = match (&self.phase, &new_phase) {
             (AppPhase::Fresh,      AppPhase::DbOpen)     => true,
             (AppPhase::Fresh,      AppPhase::Identified)  => true,
-            (AppPhase::DbOpen,     AppPhase::Identified) => true, 
+            (AppPhase::DbOpen,     AppPhase::Identified) => true,
             (AppPhase::DbOpen,     AppPhase::Ready)       => true,
             (AppPhase::Identified, AppPhase::Ready)       => true,
             (AppPhase::Ready,      AppPhase::P2PActive)   => true,
@@ -111,9 +113,9 @@ impl AppState {
         self.ledger          = None;
         self.panic_activated = false;
         self.peer_count      = 0;
+        self.peer_list       = Vec::new();
         self.incoming_queue  = Vec::new();
-    }   
-
+    }
 }
 
 impl Default for AppState {

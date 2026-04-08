@@ -3,7 +3,9 @@
 // FFI функции: отправка и получение сообщений
 // ============================================================
 
-use root_network::{P2pOutMessage, generate_topic_id};
+// NodeCommand вместо P2pOutMessage — generate_topic_id остаётся
+use root_network::channels::NodeCommand;
+use root_network::generate_topic_id;
 use root_storage::Message;
 use std::time::{SystemTime, UNIX_EPOCH};
 use super::identity::get_public_key;
@@ -12,9 +14,9 @@ use super::types::{ApiError, MessageInfo};
 use crate::require_state;
 use root_core::state::AppPhase;
 
-
 pub fn send_message(to_key: String, content: String) -> Result<u64, ApiError> {
     require_state!(root_core::state::AppPhase::Ready | root_core::state::AppPhase::P2PActive);
+
     let from_key = get_public_key()?;
     let msg = Message::new(from_key.clone(), to_key.clone(), content.clone());
 
@@ -32,20 +34,14 @@ pub fn send_message(to_key: String, content: String) -> Result<u64, ApiError> {
             .map_err(|_| ApiError::StorageError("Lock poisoned".into()))?;
 
         if let Some(sender) = state.p2p_sender.as_ref() {
-            // P2P запущен — вычисляем топик и отправляем
+            // P2P запущен — вычисляем топик и отправляем NodeCommand::Publish
             let identity = state.identity.as_ref()
                 .ok_or(ApiError::IdentityNotInitialized)?;
-
             let own_pubkey = identity.public_key_hex();
             let topic = generate_topic_id(&own_pubkey, &to_key);
 
-            let message = P2pOutMessage {
-                topic,
-                content: content.clone(),
-            };
-
             // Канал переполнен — не критично, сообщение уже в БД
-            if let Err(e) = sender.try_send(message) {
+            if let Err(e) = sender.try_send(NodeCommand::Publish { topic, content: content.clone() }) {
                 log::warn!("⚠️ P2P канал переполнен, сообщение только в БД: {}", e);
             }
         } else {
@@ -58,16 +54,19 @@ pub fn send_message(to_key: String, content: String) -> Result<u64, ApiError> {
     Ok(id)
 }
 
-
 pub fn get_messages() -> Result<Vec<MessageInfo>, ApiError> {
     require_state!(AppPhase::Ready | AppPhase::P2PActive);
+
     let public_key = get_public_key()?;
     let state = APP_STATE.lock().unwrap();
     let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
+
     let messages = db
         .get_messages(&public_key, 0, 50)
         .map_err(ApiError::from)?;
+
     let contacts = db.get_contacts().unwrap_or_default();
+
     let infos = messages
         .into_iter()
         .map(|m| {
@@ -76,34 +75,37 @@ pub fn get_messages() -> Result<Vec<MessageInfo>, ApiError> {
                 .find(|c| c.public_key == m.from_key)
                 .map(|c| c.nickname.clone());
             MessageInfo {
-                id: m.id.unwrap_or(0),
-                from_key: m.from_key,
-                to_key: m.to_key,
-                content: m.content,
+                id:        m.id.unwrap_or(0),
+                from_key:  m.from_key,
+                to_key:    m.to_key,
+                content:   m.content,
                 timestamp: m.timestamp,
-                is_read: m.is_read,
+                is_read:   m.is_read,
                 from_name,
             }
         })
         .collect();
+
     Ok(infos)
 }
 
 pub fn get_unread_count() -> Result<u64, ApiError> {
     require_state!(AppPhase::Ready | AppPhase::P2PActive);
+
     let public_key = get_public_key()?;
     let state = APP_STATE.lock().unwrap();
     let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
-    db.unread_count(&public_key)
-    .map_err(ApiError::from)
+
+    db.unread_count(&public_key).map_err(ApiError::from)
 }
 
 pub fn mark_message_read(msg_id: u64) -> Result<(), ApiError> {
     require_state!(AppPhase::Ready | AppPhase::P2PActive);
+
     let state = APP_STATE.lock().unwrap();
     let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
-    db.mark_read(msg_id)
-    .map_err(ApiError::from)
+
+    db.mark_read(msg_id).map_err(ApiError::from)
 }
 
 pub fn now_secs() -> u64 {
