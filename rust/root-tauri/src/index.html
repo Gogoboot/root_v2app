@@ -59,6 +59,7 @@
                 <h2>P2P Сеть</h2>
             </div>
 
+            <!-- Статус и кнопки -->
             <div class="network-status-row">
                 <div class="status-badge" id="p2p-badge">
                     <span class="dot" id="p2p-dot"></span>
@@ -72,12 +73,22 @@
                 <button class="btn btn-danger" onclick="stopP2P()">⏹ Остановить</button>
             </div>
 
+            <!-- Мой ключ -->
             <div class="card">
                 <h3>Мой публичный ключ</h3>
                 <code id="my-pubkey" class="pubkey-box">Загрузка...</code>
                 <button class="btn btn-ghost" onclick="copyPubkey()">⎘ Скопировать</button>
             </div>
 
+            <!-- Список активных пиров -->
+            <div class="card">
+                <h3>Активные соединения</h3>
+                <div id="peer-list" class="peer-list">
+                    <p class="empty-state">Нет активных соединений</p>
+                </div>
+            </div>
+
+            <!-- Лог событий -->
             <h3 class="section-title">Лог событий</h3>
             <div id="log"></div>
         </div>
@@ -92,8 +103,6 @@
                     <button class="btn-icon" onclick="showNewChat()" title="Новый чат">+</button>
                 </div>
 
-                <!-- Форма нового чата (скрыта по умолчанию) -->
-                <!-- Кнопка "Мой ключ" убрана — свой ключ находится в Настройках -->
                 <div id="new-chat-form" style="display: none;" class="new-chat-form">
                     <input type="text" id="to-key"
                            placeholder="Публичный ключ получателя..."
@@ -103,7 +112,6 @@
                     </button>
                 </div>
 
-                <!-- Список контактов — заполняется из JS -->
                 <div id="contact-list" class="contact-list">
                     <p class="empty-state">Нет переписок</p>
                 </div>
@@ -111,8 +119,6 @@
 
             <!-- Правая панель: переписка -->
             <div class="chat-main">
-
-                <!-- Шапка текущего чата -->
                 <div class="chat-header">
                     <div id="chat-header-info">
                         <span class="chat-header-name" id="current-chat-name">Выберите чат</span>
@@ -123,7 +129,6 @@
                     </div>
                 </div>
 
-                <!-- Окно сообщений -->
                 <div id="msg-list" class="msg-list">
                     <div class="empty-chat-state">
                         <span class="empty-chat-icon">⬡</span>
@@ -131,7 +136,6 @@
                     </div>
                 </div>
 
-                <!-- Поле ввода -->
                 <div class="chat-input-area">
                     <textarea id="msg-content"
                               placeholder="Сообщение..."
@@ -150,6 +154,7 @@
                 <h2>Настройки</h2>
             </div>
 
+            <!-- Идентичность -->
             <div class="card">
                 <h3>Идентичность</h3>
                 <p class="card-subtitle">Ваш публичный ключ</p>
@@ -157,6 +162,44 @@
                 <button class="btn btn-ghost" onclick="copySettingsPubkey()">⎘ Скопировать ключ</button>
             </div>
 
+            <!-- База данных -->
+            <div class="card">
+                <h3>База данных</h3>
+                <p class="card-subtitle">Путь к файлу базы данных</p>
+                <code id="db-path-display" class="pubkey-box">—</code>
+            </div>
+
+            <!-- Bootstrap узлы -->
+            <div class="card">
+                <h3>Bootstrap узлы</h3>
+                <p class="card-subtitle">
+                    Узлы для первоначального подключения к сети.<br>
+                    Формат: <code class="inline-code">/dns4/host/tcp/443/wss/p2p/12D3...</code>
+                </p>
+
+                <!-- Список сохранённых bootstrap адресов -->
+                <div id="bootstrap-list" class="bootstrap-list">
+                    <p class="empty-state">Нет bootstrap узлов</p>
+                </div>
+
+                <!-- Форма добавления -->
+                <div class="bootstrap-add-row">
+                    <input type="text" id="bootstrap-input"
+                           placeholder="/dns4/host.ngrok-free.app/tcp/443/wss/p2p/12D3..."
+                           class="bootstrap-input">
+                    <button class="btn btn-primary btn-sm" onclick="addBootstrap()">+ Добавить</button>
+                </div>
+
+                <!-- Ручное подключение -->
+                <div class="bootstrap-dial-row">
+                    <button class="btn btn-ghost btn-sm" onclick="dialBootstrap()">
+                        🔗 Подключиться сейчас
+                    </button>
+                    <span class="dial-hint">Диалит все bootstrap узлы</span>
+                </div>
+            </div>
+
+            <!-- Выход -->
             <div class="card">
                 <h3>🔒 Выход</h3>
                 <p class="card-subtitle">
@@ -166,6 +209,7 @@
                 <button class="btn btn-ghost" onclick="logout()">Выйти из аккаунта</button>
             </div>
 
+            <!-- Panic Button -->
             <div class="card warning-box">
                 <h3>⚠ Panic Button</h3>
                 <p>Уничтожает все данные безвозвратно.</p>
