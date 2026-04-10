@@ -3,6 +3,11 @@ name = "root-network"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "root-node"
+path = "src/main.rs"
+
+
 [dependencies]
 libp2p = { version = "0.56", features = [
     "tcp", "noise", "yamux", "gossipsub", "mdns", "tokio", "macros", "quic",
