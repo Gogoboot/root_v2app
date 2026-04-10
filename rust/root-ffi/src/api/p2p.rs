@@ -18,6 +18,8 @@ use crate::api::types::{MessageInfo, PeerInfoDto, ApiError};
 use crate::require_state;
 use root_core::state::AppPhase;
 use root_network::channels::{NodeCommand, start_node_channels};
+use root_network::generate_topic_id;
+
 
 // ── Запуск / остановка ───────────────────────────────────────
 
@@ -302,17 +304,3 @@ pub fn get_incoming_messages() -> Vec<MessageInfo> {
 }
 
 // ── Вспомогательные функции ──────────────────────────────────
-
-/// Генерация детерминированного топика для приватного чата
-/// Сортируем ключи чтобы топик был одинаковым с обеих сторон
-fn generate_topic_id(key_a: &str, key_b: &str) -> String {
-    let mut keys = [key_a, key_b];
-    keys.sort();
-    let combined = format!("{}{}", keys[0], keys[1]);
-    // SHA-256 от отсортированной пары ключей
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut hasher = DefaultHasher::new();
-    combined.hash(&mut hasher);
-    format!("priv-{:x}", hasher.finish())
-}
