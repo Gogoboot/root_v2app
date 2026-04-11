@@ -104,9 +104,11 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
                         log::warn!("⚠️ БД не открыта — входящее сообщение потеряно");
                         continue;
                     }
-
+                    
                     let message = root_storage::Message::new(
-                        msg.from_peer.clone(),
+                        // from_pubkey — Ed25519 ключ отправителя, не PeerID
+                        // теперь UI правильно идентифицирует (identify — определяет) отправителя
+                        msg.from_pubkey.clone(),
                         my_key,
                         msg.content.clone(),
                     );

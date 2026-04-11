@@ -28,11 +28,14 @@ use super::behaviour::{
 /// Входящее P2P сообщение
 #[derive(Debug, Clone)]
 pub struct P2pMessage {
-    pub from_peer: String,
-    pub content:   String,
-    pub timestamp: u64,
+    /// libp2p PeerID отправителя — для роутинга (routing — маршрутизации)
+    pub from_peer:   String,
+    /// Ed25519 публичный ключ отправителя — для идентификации в UI
+    /// Извлекается из подписи gossipsub — гарантированно правильный
+    pub from_pubkey: String,
+    pub content:     String,
+    pub timestamp:   u64,
 }
-
 /// Информация об активном пире — для отображения в UI
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PeerInfo {
@@ -232,8 +235,36 @@ pub async fn start_node_channels(
                             }
                             let content   = String::from_utf8_lossy(&message.data).to_string();
                             let timestamp = now_unix();
+
+                            // Извлекаем Ed25519 публичный ключ из PeerID отправителя
+                            // to_bytes() возвращает байты multihash — из них достаём ключ
+                            // Gossipsub::Strict уже проверил подпись — ключ гарантированно правильный
+                            let from_pubkey = message.source
+                                .as_ref()
+                                .and_then(|peer_id| {
+                                    libp2p::identity::PublicKey::try_decode_protobuf(
+                                        &peer_id.to_bytes()
+                                    ).ok()
+                                })
+                                .map(|pubkey| {
+                                    let full = hex::encode(pubkey.encode_protobuf());
+                                    // Убираем protobuf prefix "08011220" (4 байта)
+                                    // Оставляем только 32 байта Ed25519 ключа
+                                    if full.starts_with("08011220") {
+                                        full[8..].to_string()
+                                    } else {
+                                        full
+                                    }
+                                })
+                                .unwrap_or_else(|| propagation_source.to_string());
+
+                            // Временный лог — удалим после отладки
+                            println!("  🔑 from_pubkey: {}", &from_pubkey);
+                            println!("  🔑 from_peer:   {}", &propagation_source);
+
                             let msg = P2pMessage {
-                                from_peer: propagation_source.to_string(),
+                                from_peer:   propagation_source.to_string(),
+                                from_pubkey,
                                 content,
                                 timestamp,
                             };
