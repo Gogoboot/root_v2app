@@ -128,22 +128,32 @@ pub fn restore_identity(mnemonic: String) -> Result<IdentityInfo, ApiError> {
     }
 
     let old_phase = state.phase.clone();
-    let target_phase = if state.database.is_some() {
-        AppPhase::Ready
-    } else {
-        AppPhase::Identified
-    };
 
-    if !state.transition(target_phase.clone()) {
-        return Err(ApiError::InternalError(
-            format!("Transition failed: {:?} → {:?}", old_phase, target_phase)
-        ));
+    // Если фаза уже Ready или P2PActive — transition не нужен
+    // Это нормально когда restore вызывается после unlock_database
+    if !matches!(state.phase, AppPhase::Ready | AppPhase::P2PActive) {
+        let target_phase = if state.database.is_some() {
+            AppPhase::Ready
+        } else {
+            AppPhase::Identified
+        };
+
+        if !state.transition(target_phase.clone()) {
+            return Err(ApiError::InternalError(
+                format!("Transition failed: {:?} → {:?}", old_phase, target_phase)
+            ));
+        }
+
+        // println внутри блока — target_phase доступна здесь
+        println!("  🔄 Phase: {:?} → {:?}", old_phase, target_phase);
+    } else {
+        println!("  🔄 Phase уже Ready — transition пропущен");
     }
 
-    println!("  🔄 Phase: {:?} → {:?}", old_phase, target_phase);
     println!("  ✅ Identity восстановлена: {}...", &info.public_key[..16]);
     Ok(info)
 }
+
 
 pub fn get_public_key() -> Result<String, ApiError> {
     require_state!(AppPhase::Ready | AppPhase::P2PActive);

@@ -31,6 +31,28 @@
                     <button class="btn btn-primary" onclick="unlockDatabase()">
                         → Войти
                     </button>
+                    <button class="btn btn-ghost" onclick="showRestoreForm()">
+                        ↩ Восстановить из мнемоники
+                    </button>
+                </div>
+
+                <!-- Форма восстановления — скрыта по умолчанию -->
+                <div id="restore-form" style="display: none; margin-top: 16px;">
+                    <p class="mnemonic-warning">
+                        Введите 24 слова через пробел
+                    </p>
+                    <textarea id="restore-mnemonic"
+                            rows="4"
+                            placeholder="word1 word2 word3 ..."
+                            style="width: 100%; margin-bottom: 8px;"></textarea>
+                    <div class="btn-row">
+                        <button class="btn btn-primary" onclick="restoreFromMnemonic()">
+                            ✓ Восстановить
+                        </button>
+                        <button class="btn btn-ghost" onclick="hideRestoreForm()">
+                            Отмена
+                        </button>
+                    </div>
                 </div>
 
                 <div id="mnemonic-display" style="display: none; margin-top: 10px;">

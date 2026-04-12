@@ -68,3 +68,64 @@ window.closeMnemonicAndEnter = async function() {
         console.log('Ключ будет загружен после входа');
     }
 }
+
+// Показать форму восстановления из мнемоники
+window.showRestoreForm = function() {
+    document.getElementById('restore-form').style.display = 'block';
+    document.getElementById('restore-mnemonic').focus();
+}
+
+// Скрыть форму восстановления
+window.hideRestoreForm = function() {
+    document.getElementById('restore-form').style.display = 'none';
+    document.getElementById('restore-mnemonic').value = '';
+}
+
+// Восстановить аккаунт из мнемоники
+window.restoreFromMnemonic = async function() {
+    const invoke = window.__TAURI__.core.invoke;
+    const password = document.getElementById('db-password').value;
+    const mnemonic = document.getElementById('restore-mnemonic').value.trim();
+
+    if (!password) {
+        window.log('Введите пароль для новой базы данных', 'error');
+        return;
+    }
+
+    if (!mnemonic) {
+        window.log('Введите мнемонику', 'error');
+        return;
+    }
+
+    // Проверяем что 24 слова
+    if (mnemonic.split(' ').length !== 24) {
+        window.log('Мнемоника должна содержать 24 слова', 'error');
+        return;
+    }
+
+    try {
+        // 1. Открываем БД с новым паролем
+        const dbPath = await invoke('get_db_path');
+        await invoke('unlock_database', { password, dbPath });
+
+        // 2. Восстанавливаем identity из мнемоники
+        const info = await invoke('restore_identity', { mnemonic });
+
+        window.log('✅ Аккаунт восстановлен: ' + info.public_key.slice(0, 16) + '...', 'success');
+
+        // 3. Входим в приложение
+        window.enterApp();
+
+        // 4. Загружаем ключ в UI
+        try {
+            const key = await invoke('get_public_key');
+            document.getElementById('my-pubkey').textContent = key;
+            document.getElementById('settings-pubkey').textContent = key;
+        } catch (e) {
+            console.log('Ключ будет загружен после входа');
+        }
+
+    } catch (e) {
+        window.log('❌ Ошибка восстановления: ' + e, 'error');
+    }
+}
