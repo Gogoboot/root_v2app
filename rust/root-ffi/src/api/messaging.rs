@@ -40,10 +40,22 @@ pub fn send_message(to_key: String, content: String) -> Result<u64, ApiError> {
             let own_pubkey = identity.public_key_hex();
             let topic = generate_topic_id(&own_pubkey, &to_key);
 
-            // Канал переполнен — не критично, сообщение уже в БД
-            if let Err(e) = sender.try_send(NodeCommand::Publish { topic, content: content.clone() }) {
+            // Оборачиваем в JSON с nonce — иначе gossipsub считает одинаковые тексты дублями
+            // nonce (одноразовое число) генерируется случайно для каждого сообщения
+            let nonce = {
+                use rand::Rng;
+                let mut rng = rand::thread_rng();
+                format!("{:016x}", rng.r#gen::<u64>())
+            };
+            let payload = serde_json::json!({
+                "text": content,
+                "nonce": nonce,
+            }).to_string();
+
+            if let Err(e) = sender.try_send(NodeCommand::Publish { topic, content: payload }) {
                 log::warn!("⚠️ P2P канал переполнен, сообщение только в БД: {}", e);
             }
+
         } else {
             // P2P не запущен — нормальная ситуация для офлайн режима
             log::info!("📦 P2P не запущен — сообщение сохранено локально (id: {})", id);

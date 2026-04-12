@@ -105,12 +105,17 @@ pub fn start_p2p_node() -> Result<String, ApiError> {
                         continue;
                     }
                     
+                    // Парсим JSON с nonce — достаём только текст для сохранения в БД
+                    // Если формат не JSON (старый клиент) — сохраняем как есть
+                    let text = serde_json::from_str::<serde_json::Value>(&msg.content)
+                        .ok()
+                        .and_then(|v| v["text"].as_str().map(|s| s.to_string()))
+                        .unwrap_or_else(|| msg.content.clone());
+
                     let message = root_storage::Message::new(
-                        // from_pubkey — Ed25519 ключ отправителя, не PeerID
-                        // теперь UI правильно идентифицирует (identify — определяет) отправителя
                         msg.from_pubkey.clone(),
                         my_key,
-                        msg.content.clone(),
+                        text,
                     );
 
                     let mut state = APP_STATE.lock().unwrap();
