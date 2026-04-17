@@ -24,6 +24,10 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": []
+    "icon": [
+      "icons/Icon.ico",
+      "icons/Icon-512.png",
+      "icons/Icon-maskable-512.png"
+    ]
   }
 }
