@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +9,7 @@
 <body>
 
     <!-- ========================================== -->
-    <!-- ЭКРАН 1: ИНИЦИАЛИЗАЦИЯ (Вход)              -->
+    <!-- ЭКРАН 1: ВХОД                              -->
     <!-- ========================================== -->
     <div id="screen-init" class="screen active">
         <div class="login-container">
@@ -23,9 +23,15 @@
                 <h2>Вход в систему</h2>
                 <p class="card-subtitle">Введите пароль для разблокировки базы данных</p>
 
-                <input type="password" id="db-password"
-                       placeholder="••••••••••••"
-                       onkeydown="if(event.key==='Enter') unlockDatabase()">
+                <!-- Поле пароля с кнопкой показа/скрытия -->
+                <div class="password-wrapper">
+                    <input type="password" id="db-password"
+                           placeholder="••••••••••••"
+                           onkeydown="if(event.key==='Enter') unlockDatabase()">
+                    <button class="password-toggle" onclick="togglePasswordVisibility()" title="Показать/скрыть пароль" tabindex="-1">
+                        👁
+                    </button>
+                </div>
 
                 <div class="btn-row">
                     <button class="btn btn-primary" onclick="unlockDatabase()">
@@ -36,7 +42,7 @@
                     </button>
                 </div>
 
-                <!-- Форма восстановления — скрыта по умолчанию -->
+                <!-- Форма восстановления -->
                 <div id="restore-form" style="display: none; margin-top: 16px;">
                     <p class="mnemonic-warning">
                         Введите 24 слова через пробел
@@ -55,6 +61,7 @@
                     </div>
                 </div>
 
+                <!-- Мнемоника при первом входе -->
                 <div id="mnemonic-display" style="display: none; margin-top: 10px;">
                     <p class="mnemonic-warning">
                         ⚠ Запишите эти 24 слова — они показываются только один раз
@@ -75,60 +82,43 @@
     <!-- ========================================== -->
     <div id="screen-app" class="screen app-screen">
 
-        <!-- ВКЛАДКА: СЕТЬ -->
-        <div id="tab-network" class="tab active">
-            <div class="tab-header">
-                <h2>P2P Сеть</h2>
-            </div>
+        <!-- ВКЛАДКА: ЧАТ (первая) -->
+        <div id="tab-chat" class="tab chat-tab active" style="display: flex;">
 
-            <!-- Статус и кнопки -->
-            <div class="network-status-row">
-                <div class="status-badge" id="p2p-badge">
-                    <span class="dot" id="p2p-dot"></span>
-                    <span id="p2p-status-text">Остановлен</span>
-                </div>
-                <span id="peer-count-text" class="peer-count">0 пиров</span>
-            </div>
-
-            <div class="btn-row">
-                <button class="btn btn-primary" onclick="startP2P()">▶ Запустить</button>
-                <button class="btn btn-danger" onclick="stopP2P()">⏹ Остановить</button>
-            </div>
-
-            <!-- Мой ключ -->
-            <div class="card">
-                <h3>Мой публичный ключ</h3>
-                <code id="my-pubkey" class="pubkey-box">Загрузка...</code>
-                <button class="btn btn-ghost" onclick="copyPubkey()">⎘ Скопировать</button>
-            </div>
-
-            <!-- Список активных пиров -->
-            <div class="card">
-                <h3>Активные соединения</h3>
-                <div id="peer-list" class="peer-list">
-                    <p class="empty-state">Нет активных соединений</p>
+            <!-- Модалка редактирования ника (внутри chat-tab для позиционирования) -->
+            <div id="nick-modal-overlay" class="nick-modal-overlay" onclick="closeNickModal(event)">
+                <div class="nick-modal">
+                    <h3>Редактировать контакт</h3>
+                    <input type="text" id="nick-input" placeholder="Имя контакта..." maxlength="40">
+                    <textarea id="desc-input" placeholder="Описание (опционально)..." rows="2" style="resize:none;"></textarea>
+                    <div class="btn-row">
+                        <button class="btn btn-primary btn-sm" onclick="saveNick()">✓ Сохранить</button>
+                        <button class="btn btn-ghost btn-sm" onclick="closeNickModalDirect()">Отмена</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Лог событий -->
-            <h3 class="section-title">Лог событий</h3>
-            <div id="log"></div>
-        </div>
-
-        <!-- ВКЛАДКА: ЧАТ -->
-        <div id="tab-chat" class="tab chat-tab" style="display: none;">
-
-            <!-- Левая панель: список контактов -->
+            <!-- Левая панель: список чатов -->
             <div class="chat-sidebar">
                 <div class="sidebar-header">
                     <span>Чаты</span>
                     <button class="btn-icon" onclick="showNewChat()" title="Новый чат">+</button>
                 </div>
 
+                <!-- Поиск по контактам -->
+                <div class="sidebar-search">
+                    <input type="text" id="contact-search"
+                           placeholder="Поиск..."
+                           oninput="filterContacts(this.value)">
+                </div>
+
                 <div id="new-chat-form" style="display: none;" class="new-chat-form">
                     <input type="text" id="to-key"
                            placeholder="Публичный ключ получателя..."
                            class="new-chat-input">
+                    <input type="text" id="new-nick-input"
+                           placeholder="Имя контакта (необязательно)"
+                           class="new-chat-nick">
                     <button class="btn btn-primary btn-sm" onclick="startChatWithKey()">
                         → Начать чат
                     </button>
@@ -142,12 +132,18 @@
             <!-- Правая панель: переписка -->
             <div class="chat-main">
                 <div class="chat-header">
-                    <div id="chat-header-info">
+                    <div id="chat-header-info" class="chat-header-info">
                         <span class="chat-header-name" id="current-chat-name">Выберите чат</span>
                         <span class="chat-header-key" id="current-chat-key"></span>
                     </div>
-                    <div class="encryption-badge" title="End-to-end шифрование">
-                        🔒 E2E
+                    <div class="chat-header-actions">
+                        <button class="btn-edit-nick" id="btn-edit-nick"
+                                style="display:none;" onclick="openNickModal()">
+                            ✎ Изменить имя
+                        </button>
+                        <div class="encryption-badge" title="End-to-end шифрование">
+                            🔒 E2E
+                        </div>
                     </div>
                 </div>
 
@@ -170,10 +166,124 @@
             </div>
         </div>
 
+        <!-- ВКЛАДКА: СЕТЬ -->
+        <div id="tab-network" class="tab" style="display: none;">
+            <div class="tab-header">
+                <h2>P2P Сеть</h2>
+            </div>
+
+            <div class="network-status-row">
+                <div class="status-badge" id="p2p-badge">
+                    <span class="dot" id="p2p-dot"></span>
+                    <span id="p2p-status-text">Остановлен</span>
+                </div>
+                <span id="peer-count-text" class="peer-count">0 пиров</span>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="startP2P()">▶ Запустить</button>
+                <button class="btn btn-danger" onclick="stopP2P()">⏹ Остановить</button>
+            </div>
+
+            <div class="card">
+                <h3>Мой публичный ключ</h3>
+                <code id="my-pubkey" class="pubkey-box">Загрузка...</code>
+                <button class="btn btn-ghost" onclick="copyPubkey()">⎘ Скопировать</button>
+            </div>
+
+            <div class="card">
+                <h3>Активные соединения</h3>
+                <div id="peer-list" class="peer-list">
+                    <p class="empty-state">Нет активных соединений</p>
+                </div>
+            </div>
+
+            <h3 class="section-title">Лог событий</h3>
+            <div id="log"></div>
+        </div>
+
+        <!-- ВКЛАДКА: ДИАГНОСТИКА -->
+        <div id="tab-diag" class="tab diag-tab" style="display: none;">
+            <div class="tab-header">
+                <h2>Диагностика</h2>
+            </div>
+
+            <!-- Метрики в ряд -->
+            <div class="diag-metrics">
+                <div class="diag-metric">
+                    <span class="diag-metric-label">Bootstrap нода</span>
+                    <span class="diag-metric-value" id="diag-bootstrap-status">—</span>
+                </div>
+                <div class="diag-metric">
+                    <span class="diag-metric-label">Пиров</span>
+                    <span class="diag-metric-value accent" id="diag-peer-count">0</span>
+                </div>
+                <div class="diag-metric">
+                    <span class="diag-metric-label">P2P статус</span>
+                    <span class="diag-metric-value" id="diag-p2p-state">—</span>
+                </div>
+                <div class="diag-metric">
+                    <span class="diag-metric-label">Версия</span>
+                    <span class="diag-metric-value accent" id="diag-version">—</span>
+                </div>
+            </div>
+
+            <!-- Мой PeerID и ключ -->
+            <div class="card">
+                <h3>Идентификация</h3>
+                <p class="card-subtitle">Публичный ключ</p>
+                <code id="diag-pubkey" class="pubkey-box">—</code>
+                <p class="card-subtitle" style="margin-top:4px;">Путь к базе данных</p>
+                <code id="diag-db-path" class="pubkey-box">—</code>
+            </div>
+
+            <!-- Список пиров с протоколами -->
+            <div class="card">
+                <h3>Активные пиры</h3>
+                <div id="diag-peer-list" class="peer-list">
+                    <p class="empty-state">Нет активных соединений</p>
+                </div>
+            </div>
+
+            <!-- Лог с фильтром -->
+            <div class="card">
+                <h3>Лог событий</h3>
+                <div class="diag-log-controls">
+                    <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">Фильтр:</span>
+                    <button class="log-filter-btn active" onclick="setLogFilter('all', this)">Все</button>
+                    <button class="log-filter-btn filter-info" onclick="setLogFilter('info', this)">Info</button>
+                    <button class="log-filter-btn filter-success" onclick="setLogFilter('success', this)">OK</button>
+                    <button class="log-filter-btn filter-error" onclick="setLogFilter('error', this)">Error</button>
+                    <button class="log-filter-btn filter-warn" onclick="setLogFilter('warn', this)">Warn</button>
+                </div>
+                <div id="diag-log" class="diag-log"></div>
+                <button class="btn btn-ghost btn-sm" onclick="copyDiagReport()">⎘ Копировать отчёт</button>
+            </div>
+        </div>
+
         <!-- ВКЛАДКА: НАСТРОЙКИ -->
         <div id="tab-settings" class="tab" style="display: none;">
             <div class="tab-header">
                 <h2>Настройки</h2>
+            </div>
+
+            <!-- Тема -->
+            <div class="card">
+                <h3>Тема оформления</h3>
+                <div class="theme-switcher">
+                    <button class="theme-btn active" id="theme-btn-dark" onclick="setTheme('dark', this)">
+                        <span class="theme-dot theme-dot-dark"></span>
+                        Dark Terminal
+                    </button>
+                    <button class="theme-btn" id="theme-btn-light" onclick="setTheme('light', this)">
+                        <span class="theme-dot theme-dot-light"></span>
+                        Light
+                    </button>
+                    <button class="theme-btn" id="theme-btn-hacker" onclick="setTheme('hacker', this)">
+                        <span class="theme-dot theme-dot-hacker"></span>
+                        Hacker Green
+                    </button>
+                </div>
             </div>
 
             <!-- Идентичность -->
@@ -198,21 +308,15 @@
                     Узлы для первоначального подключения к сети.<br>
                     Формат: <code class="inline-code">/dns4/host/tcp/443/wss/p2p/12D3...</code>
                 </p>
-
-                <!-- Список сохранённых bootstrap адресов -->
                 <div id="bootstrap-list" class="bootstrap-list">
                     <p class="empty-state">Нет bootstrap узлов</p>
                 </div>
-
-                <!-- Форма добавления -->
                 <div class="bootstrap-add-row">
                     <input type="text" id="bootstrap-input"
-                           placeholder="/dns4/host.ngrok-free.app/tcp/443/wss/p2p/12D3..."
+                           placeholder="/ip4/31.130.133.38/tcp/9000/ws/p2p/12D3..."
                            class="bootstrap-input">
                     <button class="btn btn-primary btn-sm" onclick="addBootstrap()">+ Добавить</button>
                 </div>
-
-                <!-- Ручное подключение -->
                 <div class="bootstrap-dial-row">
                     <button class="btn btn-ghost btn-sm" onclick="dialBootstrap()">
                         🔗 Подключиться сейчас
@@ -243,13 +347,17 @@
 
         <!-- Нижняя навигация -->
         <nav id="main-nav" style="display: none;">
-            <button class="nav-btn active" onclick="showTab('network', this)">
+            <button class="nav-btn active" onclick="showTab('chat', this)">
+                <span class="nav-icon">💬</span>
+                <span class="nav-label">Чат</span>
+            </button>
+            <button class="nav-btn" onclick="showTab('network', this)">
                 <span class="nav-icon">📡</span>
                 <span class="nav-label">Сеть</span>
             </button>
-            <button class="nav-btn" onclick="showTab('chat', this)">
-                <span class="nav-icon">💬</span>
-                <span class="nav-label">Чат</span>
+            <button class="nav-btn" onclick="showTab('diag', this)">
+                <span class="nav-icon">🔬</span>
+                <span class="nav-label">Диагностика</span>
             </button>
             <button class="nav-btn" onclick="showTab('settings', this)">
                 <span class="nav-icon">⚙</span>
@@ -263,5 +371,7 @@
     <script src="js/identity.js"></script>
     <script src="js/p2p.js"></script>
     <script src="js/messaging.js"></script>
+    <script src="js/contacts.js"></script>
+    <script src="js/diagnostics.js"></script>
 </body>
 </html>

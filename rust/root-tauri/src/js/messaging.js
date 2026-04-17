@@ -5,14 +5,20 @@
 // Текущий выбранный собеседник (его публичный ключ)
 let currentChatKey = null;
 
-// Мой публичный ключ — нужен чтобы определить входящее/исходящее
+// Мой публичный ключ
 let myPublicKey = null;
 
-// ==========================================
-// ИНИЦИАЛИЗАЦИЯ
-// ==========================================
+// Последний поисковый запрос
+let contactSearchQuery = '';
 
-// Вызывается из main.js после входа
+// ── Экспортируем currentChatKey для contacts.js ──────────────
+Object.defineProperty(window, '_currentChatKey', {
+    get: () => currentChatKey,
+    set: (v) => { currentChatKey = v; }
+});
+
+// ── Инициализация ────────────────────────────────────────────
+
 window.initMessaging = async function() {
     const invoke = window.__TAURI__.core.invoke;
     try {
@@ -23,19 +29,13 @@ window.initMessaging = async function() {
     await window.loadMessages();
 }
 
-// ==========================================
-// ЗАГРУЗКА И РЕНДЕР СООБЩЕНИЙ
-// ==========================================
+// ── Загрузка и рендер сообщений ──────────────────────────────
 
 window.loadMessages = async function() {
     const invoke = window.__TAURI__.core.invoke;
     try {
         const msgs = await invoke('get_incoming_messages');
-
-        // Обновляем список контактов в сайдбаре
         renderContactList(msgs);
-
-        // Если есть выбранный чат — обновляем переписку
         if (currentChatKey) {
             renderConversation(msgs, currentChatKey);
         }
@@ -44,7 +44,14 @@ window.loadMessages = async function() {
     }
 }
 
-// Строим список уникальных контактов из всех сообщений
+// Фильтрация контактов по поисковому запросу
+window.filterContacts = function(query) {
+    contactSearchQuery = query.toLowerCase().trim();
+    // Перерисовываем список с текущим фильтром
+    window.loadMessages();
+}
+
+// Строим список уникальных контактов
 function renderContactList(msgs) {
     const list = document.getElementById('contact-list');
     if (!list) return;
@@ -55,14 +62,10 @@ function renderContactList(msgs) {
     }
 
     // Собираем уникальных собеседников
-    // Аналогия: из всей стопки писем достаём уникальные адреса
     const contactMap = new Map();
 
     msgs.forEach(m => {
-        // Определяем кто собеседник — не я
         const partnerKey = m.from_key === myPublicKey ? m.to_key : m.from_key;
-
-        // Пропускаем себя — чат с самим собой не показываем
         if (partnerKey === myPublicKey) return;
 
         if (!contactMap.has(partnerKey)) {
@@ -72,7 +75,6 @@ function renderContactList(msgs) {
                 lastTime: m.timestamp,
             });
         } else {
-            // Обновляем если это более новое сообщение
             const existing = contactMap.get(partnerKey);
             if (m.timestamp > existing.lastTime) {
                 existing.lastMsg = m.content;
@@ -81,60 +83,73 @@ function renderContactList(msgs) {
         }
     });
 
-    // Если после фильтрации контактов нет — показываем пустой экран
     if (contactMap.size === 0) {
         list.innerHTML = '<p class="empty-state">Нет переписок</p>';
         return;
     }
 
-    // Сортируем по времени последнего сообщения (новые сверху)
-    const contacts = [...contactMap.values()]
-        .sort((a, b) => b.lastTime - a.lastTime);
+    let contacts = [...contactMap.values()].sort((a, b) => b.lastTime - a.lastTime);
+
+    // Применяем поиск — по нику или ключу
+    if (contactSearchQuery) {
+        contacts = contacts.filter(c => {
+            const nick = window.getDisplayName ? window.getDisplayName(c.key).toLowerCase() : '';
+            return nick.includes(contactSearchQuery) || c.key.toLowerCase().includes(contactSearchQuery);
+        });
+    }
+
+    if (contacts.length === 0) {
+        list.innerHTML = '<p class="empty-state">Ничего не найдено</p>';
+        return;
+    }
 
     list.innerHTML = contacts.map(c => {
-        // Сокращаем ключ для отображения: abcd1234…efgh5678
-        const shortKey = c.key.length > 16
-            ? c.key.slice(0, 8) + '…' + c.key.slice(-8)
-            : c.key;
+        // Ник или сокращённый ключ
+        const displayName = window.getDisplayName ? window.getDisplayName(c.key) : (c.key.slice(0, 8) + '…' + c.key.slice(-8));
+        const hasNick = window.getContactNick && window.getContactNick(c.key)?.nick;
+
+        // Сокращённый ключ — показываем под ником
+        const shortKey = c.key.slice(0, 8) + '…' + c.key.slice(-8);
 
         const time = formatTime(c.lastTime);
         const isActive = c.key === currentChatKey ? 'active' : '';
-        const preview = escapeHtml(c.lastMsg.slice(0, 40)) +
-                        (c.lastMsg.length > 40 ? '…' : '');
+        const preview = escapeHtml(c.lastMsg.slice(0, 40)) + (c.lastMsg.length > 40 ? '…' : '');
 
-        // data-key хранит полный ключ — используем при клике
         return `
             <div class="contact-item ${isActive}"
                  data-key="${escapeHtml(c.key)}"
                  onclick="selectChat('${escapeHtml(c.key)}')">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span class="contact-name">${shortKey}</span>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
+                    <span class="contact-nick">${escapeHtml(displayName)}</span>
                     <span class="contact-time">${time}</span>
                 </div>
+                ${hasNick ? `<span class="contact-key-short">${shortKey}</span>` : ''}
                 <span class="contact-preview">${preview}</span>
             </div>
         `;
     }).join('');
 }
 
-// Выбираем чат — показываем переписку с этим контактом
+// Выбираем чат
 window.selectChat = async function(key) {
     currentChatKey = key;
 
-    // Обновляем шапку чата
-    const shortKey = key.slice(0, 12) + '…' + key.slice(-12);
-    document.getElementById('current-chat-name').textContent = shortKey;
-    document.getElementById('current-chat-key').textContent = key;
+    // Имя: ник или ключ
+    const displayName = window.getDisplayName ? window.getDisplayName(key) : (key.slice(0, 12) + '…' + key.slice(-12));
 
-    // Вставляем ключ в скрытое поле to-key (для отправки)
+    document.getElementById('current-chat-name').textContent = displayName;
+    document.getElementById('current-chat-key').textContent = key;
     document.getElementById('to-key').value = key;
 
-    // Обновляем активный контакт в списке
+    // Показываем кнопку редактирования ника
+    const editBtn = document.getElementById('btn-edit-nick');
+    if (editBtn) editBtn.style.display = '';
+
+    // Активный контакт в списке
     document.querySelectorAll('.contact-item').forEach(el => {
         el.classList.toggle('active', el.dataset.key === key);
     });
 
-    // Загружаем переписку
     const invoke = window.__TAURI__.core.invoke;
     try {
         const msgs = await invoke('get_incoming_messages');
@@ -144,12 +159,11 @@ window.selectChat = async function(key) {
     }
 }
 
-// Рендерим переписку с конкретным контактом в виде пузырей
+// Рендерим переписку с пузырями и статусами
 function renderConversation(msgs, partnerKey) {
     const list = document.getElementById('msg-list');
     if (!list) return;
 
-    // Фильтруем только сообщения с этим контактом
     const conversation = msgs.filter(m =>
         m.from_key === partnerKey || m.to_key === partnerKey
     );
@@ -164,10 +178,8 @@ function renderConversation(msgs, partnerKey) {
         return;
     }
 
-    // Сортируем от старых к новым (старые сверху)
     const sorted = [...conversation].sort((a, b) => a.timestamp - b.timestamp);
 
-    // Группируем по датам — вставляем разделители
     let lastDate = null;
     const html = sorted.map(m => {
         const isOutgoing = m.from_key === myPublicKey;
@@ -177,7 +189,6 @@ function renderConversation(msgs, partnerKey) {
             hour: '2-digit', minute: '2-digit'
         });
 
-        // Дата для разделителя
         const msgDate = new Date(m.timestamp * 1000).toLocaleDateString('ru-RU', {
             day: '2-digit', month: 'long'
         });
@@ -185,49 +196,49 @@ function renderConversation(msgs, partnerKey) {
         let divider = '';
         if (msgDate !== lastDate) {
             lastDate = msgDate;
-            divider = `
-                <div class="date-divider">
-                    <span>${msgDate}</span>
-                </div>
-            `;
+            divider = `<div class="date-divider"><span>${msgDate}</span></div>`;
         }
 
-        // Статус — пока просто "отправлено"
-        // TODO: в v2.1 добавить реальные статусы доставки
-        const statusIcon = isOutgoing ? '✓' : '';
-        const statusClass = isOutgoing ? 'sent' : '';
+        // Статус сообщения
+        // Логика: исходящее = ◻ sent, у нас нет реальных ACK пока — показываем sent
+        // TODO: когда появится delivery ACK — переключать на delivered/pending/error
+        let statusHtml = '';
+        if (isOutgoing) {
+            const status = m.status || 'sent';
+            const icons = {
+                sent:      { icon: '◻', cls: 'msg-status-sent',      title: 'Отправлено' },
+                pending:   { icon: '⏳', cls: 'msg-status-pending',   title: 'Ожидание доставки' },
+                delivered: { icon: '✓', cls: 'msg-status-delivered',  title: 'Доставлено' },
+                error:     { icon: '⚠', cls: 'msg-status-error',      title: 'Ошибка доставки' },
+            };
+            const s = icons[status] || icons.sent;
+            statusHtml = `<span class="msg-status-icon ${s.cls}" title="${s.title}">${s.icon}</span>`;
+        }
 
-        // Имя отправителя показываем только для входящих
-        const senderLine = !isOutgoing ? `
-            <div class="msg-sender">
-                ${m.from_key.slice(0, 8)}…${m.from_key.slice(-8)}
-            </div>
-        ` : '';
+        // Имя отправителя для входящих
+        const senderNick = !isOutgoing && window.getDisplayName
+            ? window.getDisplayName(m.from_key)
+            : '';
+        const senderLine = !isOutgoing ? `<div class="msg-sender">${escapeHtml(senderNick)}</div>` : '';
 
         return `
             ${divider}
             <div class="msg-wrapper ${direction}">
                 ${senderLine}
-                <div class="msg-bubble">
-                    ${escapeHtml(m.content)}
-                </div>
+                <div class="msg-bubble">${escapeHtml(m.content)}</div>
                 <div class="msg-meta">
                     <span class="msg-time">${time}</span>
-                    ${statusIcon ? `<span class="msg-status ${statusClass}">${statusIcon}</span>` : ''}
+                    ${statusHtml}
                 </div>
             </div>
         `;
     }).join('');
 
     list.innerHTML = html;
-
-    // Автоскролл вниз — к последнему сообщению
     list.scrollTop = list.scrollHeight;
 }
 
-// ==========================================
-// ОТПРАВКА СООБЩЕНИЯ
-// ==========================================
+// ── Отправка сообщения ───────────────────────────────────────
 
 window.sendMessage = async function() {
     const invoke = window.__TAURI__.core.invoke;
@@ -244,22 +255,18 @@ window.sendMessage = async function() {
     }
 
     try {
-        // Tauri конвертирует to_key (Rust snake_case) → toKey (JS camelCase)
         const id = await invoke('send_message', { toKey, content });
         window.log('Отправлено (ID: ' + id + ')', 'success');
 
-        // Очищаем поле ввода
         const textarea = document.getElementById('msg-content');
         textarea.value = '';
-        textarea.style.height = 'auto'; // сбрасываем высоту после авторесайза
+        textarea.style.height = 'auto';
 
-        // Если чат с этим контактом не открыт — открываем
         if (currentChatKey !== toKey) {
             currentChatKey = toKey;
             document.getElementById('to-key').value = toKey;
         }
 
-        // Сразу обновляем переписку
         await window.loadMessages();
 
     } catch (e) {
@@ -267,11 +274,8 @@ window.sendMessage = async function() {
     }
 }
 
-// ==========================================
-// НОВЫЙ ЧАТ
-// ==========================================
+// ── Новый чат ────────────────────────────────────────────────
 
-// Показывает/скрывает форму ввода нового ключа
 window.showNewChat = function() {
     const form = document.getElementById('new-chat-form');
     const isVisible = form.style.display !== 'none';
@@ -281,54 +285,51 @@ window.showNewChat = function() {
     }
 }
 
-// Открывает чат по ключу из поля ввода
 window.startChatWithKey = function() {
-    const key = document.getElementById('to-key').value.trim();
+    const key  = document.getElementById('to-key').value.trim();
+    const nick = document.getElementById('new-nick-input')?.value.trim() || '';
 
     if (!key) {
         window.log('Введите публичный ключ', 'error');
         return;
     }
 
-    // Защита от чата с самим собой
     if (key === myPublicKey) {
         window.log('Нельзя открыть чат с самим собой', 'error');
         return;
     }
 
-    // Скрываем форму
+    // Если ник указан — сохраняем сразу
+    if (nick && window.saveNickOnCreate) {
+        window.saveNickOnCreate(key, nick);
+    }
+
     document.getElementById('new-chat-form').style.display = 'none';
-
-    // Очищаем поле — ключ теперь хранится в currentChatKey
     document.getElementById('to-key').value = '';
+    if (document.getElementById('new-nick-input')) {
+        document.getElementById('new-nick-input').value = '';
+    }
 
-    // Открываем чат
     window.selectChat(key);
 }
 
-// ==========================================
-// УТИЛИТЫ
-// ==========================================
+// ── Утилиты ──────────────────────────────────────────────────
 
-// Автоматически увеличивает textarea при вводе
 window.autoResizeTextarea = function(el) {
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
-// Форматирует timestamp в читаемое время
 function formatTime(timestamp) {
     const date = new Date(timestamp * 1000);
     const now  = new Date();
     const isToday = date.toDateString() === now.toDateString();
-
     if (isToday) {
         return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     }
     return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 }
 
-// Защита от XSS — экранирует HTML-символы
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
