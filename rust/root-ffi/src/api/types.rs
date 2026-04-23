@@ -188,3 +188,12 @@ pub struct PeerInfoDto {
     /// UNIX timestamp момента подключения — для сортировки в UI
     pub connected_at: u64,
 }
+
+/// Контакт для отображения в UI.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ContactInfo {
+    pub public_key: String,
+    pub nickname: String,
+    pub added_at: u64,
+    pub reputation: u8,
+}

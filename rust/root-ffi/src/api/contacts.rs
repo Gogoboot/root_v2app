@@ -3,12 +3,12 @@
 // FFI функции: управление контактами
 // ============================================================
 
-use root_storage::Contact;
 use super::messaging::now_secs;
 use super::state::APP_STATE;
-use super::types::ApiError;
+use super::types::{ApiError, ContactInfo};
 use crate::require_state;
 use root_core::state::AppPhase;
+use root_storage::Contact;
 
 pub fn add_contact(public_key: String, nickname: String) -> Result<(), ApiError> {
     require_state!(AppPhase::Ready | AppPhase::P2PActive);
@@ -28,10 +28,19 @@ pub fn add_contact(public_key: String, nickname: String) -> Result<(), ApiError>
     .map_err(ApiError::from)
 }
 
-pub fn get_contacts() -> Result<Vec<Contact>, ApiError> {
+pub fn get_contacts() -> Result<Vec<ContactInfo>, ApiError> {
     require_state!(AppPhase::Ready | AppPhase::P2PActive);
     let state = APP_STATE.lock().unwrap();
     let db = state.database.as_ref().ok_or(ApiError::DatabaseNotOpen)?;
-    db.get_contacts()
-    .map_err(ApiError::from)
+    let contacts = db.get_contacts().map_err(ApiError::from)?;
+    Ok(contacts
+        .into_iter()
+        .map(|c| ContactInfo {
+            public_key: c.public_key,
+            nickname: c.nickname,
+            added_at: c.added_at,
+            reputation: c.reputation,
+        })
+        .collect())
 }
+

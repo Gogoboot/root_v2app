@@ -106,6 +106,20 @@ fn save_bootstrap_list(addrs: Vec<String>) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+// ── Contacts ─────────────────────────────────────────────────
+
+#[tauri::command]
+fn add_contact(public_key: String, nickname: String) -> Result<(), String> {
+    root_ffi::api::contacts::add_contact(public_key, nickname)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_contacts() -> Result<Vec<root_ffi::api::types::ContactInfo>, String> {
+    root_ffi::api::contacts::get_contacts()
+        .map_err(|e| e.to_string())
+}
+
 // ── Messaging ────────────────────────────────────────────────
 
 #[tauri::command]
@@ -175,6 +189,9 @@ fn main() {
             // Messaging
             get_incoming_messages,
             send_message,
+            // Contacts
+            add_contact,
+            get_contacts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

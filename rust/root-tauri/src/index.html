@@ -1,370 +1,532 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru" data-theme="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ROOT v2.0 — Desktop</title>
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TOOR v2.0 — Desktop</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  </head>
+  <body>
+    <!-- ========================================== -->
+    <!-- ЛЕВАЯ ИКОНОЧНАЯ ПАНЕЛЬ                     -->
+    <!-- ========================================== -->
+    <div id="iconbar">
+      <div class="iconbar-logo">R</div>
+
+      <button
+        class="icon-btn active"
+        id="nav-chat"
+        onclick="showTab('chat', this)"
+      >
+        <span class="icon-glyph"><i data-lucide="message-circle"></i></span>
+        <span class="icon-label">Чат</span>
+      </button>
+
+      <button
+        class="icon-btn"
+        id="nav-network"
+        onclick="showTab('network', this)"
+      >
+        <span class="icon-glyph"><i data-lucide="radio"></i></span>
+        <span class="icon-label">Сеть</span>
+      </button>
+
+      <button class="icon-btn" id="nav-diag" onclick="showTab('diag', this)">
+        <span class="icon-glyph"><i data-lucide="activity"></i></span>
+        <span class="icon-label">Диагн.</span>
+      </button>
+
+      <div class="iconbar-sep"></div>
+
+      <button
+        class="icon-btn"
+        id="nav-settings"
+        onclick="showTab('settings', this)"
+      >
+        <span class="icon-glyph"><i data-lucide="settings"></i></span>
+        <span class="icon-label">Настр.</span>
+      </button>
+
+      <div class="iconbar-bottom">
+        <button class="icon-btn" onclick="logout()" title="Выйти">
+          <span class="icon-glyph"><i data-lucide="log-out"></i></span>
+          <span class="icon-label">Выход</span>
+        </button>
+      </div>
+    </div>
 
     <!-- ========================================== -->
     <!-- ЭКРАН 1: ВХОД                              -->
     <!-- ========================================== -->
-    <div id="screen-init" class="screen active">
-        <div class="login-container">
-            <div class="login-logo">
-                <span class="logo-icon">⬡</span>
-                <h1>ROOT</h1>
-                <p class="logo-version">v2.0 — Decentralized Messenger</p>
-            </div>
-
-            <section class="card login-card">
-                <h2>Вход в систему</h2>
-                <p class="card-subtitle">Введите пароль для разблокировки базы данных</p>
-
-                <!-- Поле пароля с кнопкой показа/скрытия -->
-                <div class="password-wrapper">
-                    <input type="password" id="db-password"
-                           placeholder="••••••••••••"
-                           onkeydown="if(event.key==='Enter') unlockDatabase()">
-                    <button class="password-toggle" onclick="togglePasswordVisibility()" title="Показать/скрыть пароль" tabindex="-1">
-                        👁
-                    </button>
-                </div>
-
-                <div class="btn-row">
-                    <button class="btn btn-primary" onclick="unlockDatabase()">
-                        → Войти
-                    </button>
-                    <button class="btn btn-ghost" onclick="showRestoreForm()">
-                        ↩ Восстановить из мнемоники
-                    </button>
-                </div>
-
-                <!-- Форма восстановления -->
-                <div id="restore-form" style="display: none; margin-top: 16px;">
-                    <p class="mnemonic-warning">
-                        Введите 24 слова через пробел
-                    </p>
-                    <textarea id="restore-mnemonic"
-                            rows="4"
-                            placeholder="word1 word2 word3 ..."
-                            style="width: 100%; margin-bottom: 8px;"></textarea>
-                    <div class="btn-row">
-                        <button class="btn btn-primary" onclick="restoreFromMnemonic()">
-                            ✓ Восстановить
-                        </button>
-                        <button class="btn btn-ghost" onclick="hideRestoreForm()">
-                            Отмена
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Мнемоника при первом входе -->
-                <div id="mnemonic-display" style="display: none; margin-top: 10px;">
-                    <p class="mnemonic-warning">
-                        ⚠ Запишите эти 24 слова — они показываются только один раз
-                    </p>
-                    <div id="mnemonic-grid" class="mnemonic-grid"></div>
-                    <button class="btn btn-success" onclick="closeMnemonicAndEnter()">
-                        ✓ Я записал все слова
-                    </button>
-                </div>
-
-                <div id="init-log" class="init-log"></div>
-            </section>
-        </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- ЭКРАН 2: ОСНОВНОЕ ПРИЛОЖЕНИЕ               -->
-    <!-- ========================================== -->
-    <div id="screen-app" class="screen app-screen">
-
-        <!-- ВКЛАДКА: ЧАТ (первая) -->
-        <div id="tab-chat" class="tab chat-tab active" style="display: flex;">
-
-            <!-- Модалка редактирования ника (внутри chat-tab для позиционирования) -->
-            <div id="nick-modal-overlay" class="nick-modal-overlay" onclick="closeNickModal(event)">
-                <div class="nick-modal">
-                    <h3>Редактировать контакт</h3>
-                    <input type="text" id="nick-input" placeholder="Имя контакта..." maxlength="40">
-                    <textarea id="desc-input" placeholder="Описание (опционально)..." rows="2" style="resize:none;"></textarea>
-                    <div class="btn-row">
-                        <button class="btn btn-primary btn-sm" onclick="saveNick()">✓ Сохранить</button>
-                        <button class="btn btn-ghost btn-sm" onclick="closeNickModalDirect()">Отмена</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Левая панель: список чатов -->
-            <div class="chat-sidebar">
-                <div class="sidebar-header">
-                    <span>Чаты</span>
-                    <button class="btn-icon" onclick="showNewChat()" title="Новый чат">+</button>
-                </div>
-
-                <!-- Поиск по контактам -->
-                <div class="sidebar-search">
-                    <input type="text" id="contact-search"
-                           placeholder="Поиск..."
-                           oninput="filterContacts(this.value)">
-                </div>
-
-                <div id="new-chat-form" style="display: none;" class="new-chat-form">
-                    <input type="text" id="to-key"
-                           placeholder="Публичный ключ получателя..."
-                           class="new-chat-input">
-                    <input type="text" id="new-nick-input"
-                           placeholder="Имя контакта (необязательно)"
-                           class="new-chat-nick">
-                    <button class="btn btn-primary btn-sm" onclick="startChatWithKey()">
-                        → Начать чат
-                    </button>
-                </div>
-
-                <div id="contact-list" class="contact-list">
-                    <p class="empty-state">Нет переписок</p>
-                </div>
-            </div>
-
-            <!-- Правая панель: переписка -->
-            <div class="chat-main">
-                <div class="chat-header">
-                    <div id="chat-header-info" class="chat-header-info">
-                        <span class="chat-header-name" id="current-chat-name">Выберите чат</span>
-                        <span class="chat-header-key" id="current-chat-key"></span>
-                    </div>
-                    <div class="chat-header-actions">
-                        <button class="btn-edit-nick" id="btn-edit-nick"
-                                style="display:none;" onclick="openNickModal()">
-                            ✎ Изменить имя
-                        </button>
-                        <div class="encryption-badge" title="End-to-end шифрование">
-                            🔒 E2E
-                        </div>
-                    </div>
-                </div>
-
-                <div id="msg-list" class="msg-list">
-                    <div class="empty-chat-state">
-                        <span class="empty-chat-icon">⬡</span>
-                        <p>Выберите контакт слева<br>или начните новый чат</p>
-                    </div>
-                </div>
-
-                <div class="chat-input-area">
-                    <textarea id="msg-content"
-                              placeholder="Сообщение..."
-                              rows="1"
-                              onkeydown="if(event.ctrlKey && event.key==='Enter') sendMessage()"
-                              oninput="autoResizeTextarea(this)"></textarea>
-                    <button class="btn-send" onclick="sendMessage()" title="Ctrl+Enter">→</button>
-                </div>
-                <div class="input-hint">Ctrl+Enter для отправки</div>
-            </div>
+    <div id="screen-init" class="active">
+      <canvas id="neural-canvas"></canvas>
+      <div class="login-container">
+        <div class="login-logo">
+          <!-- <span class="logo-icon">⬡</span> -->
+          <h1>TOOR</h1>
+          <p class="logo-version">v2.0 — Decentralized Messenger</p>
         </div>
 
-        <!-- ВКЛАДКА: СЕТЬ -->
-        <div id="tab-network" class="tab" style="display: none;">
-            <div class="tab-header">
-                <h2>P2P Сеть</h2>
-            </div>
+        <section class="card login-card">
+          <h2>Вход в систему</h2>
+          <p class="card-subtitle">
+            Введите пароль для разблокировки базы данных
+          </p>
 
-            <div class="network-status-row">
-                <div class="status-badge" id="p2p-badge">
-                    <span class="dot" id="p2p-dot"></span>
-                    <span id="p2p-status-text">Остановлен</span>
-                </div>
-                <span id="peer-count-text" class="peer-count">0 пиров</span>
-            </div>
+          <div class="password-wrapper">
+            <input
+              type="password"
+              id="db-password"
+              placeholder="••••••••••••"
+              onkeydown="if (event.key === 'Enter') unlockDatabase();"
+            />
+            <button
+              class="password-toggle"
+              onclick="togglePasswordVisibility()"
+              tabindex="-1"
+            >
+              👁
+            </button>
+          </div>
 
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="unlockDatabase()">
+              → Войти
+            </button>
+            <button class="btn btn-ghost" onclick="showRestoreForm()">
+              ↩ Из мнемоники
+            </button>
+          </div>
+
+          <div id="restore-form" style="display: none; margin-top: 16px">
+            <p class="mnemonic-warning">Введите 24 слова через пробел</p>
+            <textarea
+              id="restore-mnemonic"
+              rows="4"
+              placeholder="word1 word2 word3 ..."
+              style="width: 100%; margin-bottom: 8px"
+            ></textarea>
             <div class="btn-row">
-                <button class="btn btn-primary" onclick="startP2P()">▶ Запустить</button>
-                <button class="btn btn-danger" onclick="stopP2P()">⏹ Остановить</button>
+              <button class="btn btn-primary" onclick="restoreFromMnemonic()">
+                ✓ Восстановить
+              </button>
+              <button class="btn btn-ghost" onclick="hideRestoreForm()">
+                Отмена
+              </button>
             </div>
+          </div>
 
-            <div class="card">
-                <h3>Мой публичный ключ</h3>
-                <code id="my-pubkey" class="pubkey-box">Загрузка...</code>
-                <button class="btn btn-ghost" onclick="copyPubkey()">⎘ Скопировать</button>
-            </div>
-
-            <div class="card">
-                <h3>Активные соединения</h3>
-                <div id="peer-list" class="peer-list">
-                    <p class="empty-state">Нет активных соединений</p>
-                </div>
-            </div>
-
-            <h3 class="section-title">Лог событий</h3>
-            <div id="log"></div>
-        </div>
-
-        <!-- ВКЛАДКА: ДИАГНОСТИКА -->
-        <div id="tab-diag" class="tab diag-tab" style="display: none;">
-            <div class="tab-header">
-                <h2>Диагностика</h2>
-            </div>
-
-            <!-- Метрики в ряд -->
-            <div class="diag-metrics">
-                <div class="diag-metric">
-                    <span class="diag-metric-label">Bootstrap нода</span>
-                    <span class="diag-metric-value" id="diag-bootstrap-status">—</span>
-                </div>
-                <div class="diag-metric">
-                    <span class="diag-metric-label">Пиров</span>
-                    <span class="diag-metric-value accent" id="diag-peer-count">0</span>
-                </div>
-                <div class="diag-metric">
-                    <span class="diag-metric-label">P2P статус</span>
-                    <span class="diag-metric-value" id="diag-p2p-state">—</span>
-                </div>
-                <div class="diag-metric">
-                    <span class="diag-metric-label">Версия</span>
-                    <span class="diag-metric-value accent" id="diag-version">—</span>
-                </div>
-            </div>
-
-            <!-- Мой PeerID и ключ -->
-            <div class="card">
-                <h3>Идентификация</h3>
-                <p class="card-subtitle">Публичный ключ</p>
-                <code id="diag-pubkey" class="pubkey-box">—</code>
-                <p class="card-subtitle" style="margin-top:4px;">Путь к базе данных</p>
-                <code id="diag-db-path" class="pubkey-box">—</code>
-            </div>
-
-            <!-- Список пиров с протоколами -->
-            <div class="card">
-                <h3>Активные пиры</h3>
-                <div id="diag-peer-list" class="peer-list">
-                    <p class="empty-state">Нет активных соединений</p>
-                </div>
-            </div>
-
-            <!-- Лог с фильтром -->
-            <div class="card">
-                <h3>Лог событий</h3>
-                <div class="diag-log-controls">
-                    <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">Фильтр:</span>
-                    <button class="log-filter-btn active" onclick="setLogFilter('all', this)">Все</button>
-                    <button class="log-filter-btn filter-info" onclick="setLogFilter('info', this)">Info</button>
-                    <button class="log-filter-btn filter-success" onclick="setLogFilter('success', this)">OK</button>
-                    <button class="log-filter-btn filter-error" onclick="setLogFilter('error', this)">Error</button>
-                    <button class="log-filter-btn filter-warn" onclick="setLogFilter('warn', this)">Warn</button>
-                </div>
-                <div id="diag-log" class="diag-log"></div>
-                <button class="btn btn-ghost btn-sm" onclick="copyDiagReport()">⎘ Копировать отчёт</button>
-            </div>
-        </div>
-
-        <!-- ВКЛАДКА: НАСТРОЙКИ -->
-        <div id="tab-settings" class="tab" style="display: none;">
-            <div class="tab-header">
-                <h2>Настройки</h2>
-            </div>
-
-            <!-- Тема -->
-            <div class="card">
-                <h3>Тема оформления</h3>
-                <div class="theme-switcher">
-                    <button class="theme-btn active" id="theme-btn-dark" onclick="setTheme('dark', this)">
-                        <span class="theme-dot theme-dot-dark"></span>
-                        Dark Terminal
-                    </button>
-                    <button class="theme-btn" id="theme-btn-light" onclick="setTheme('light', this)">
-                        <span class="theme-dot theme-dot-light"></span>
-                        Light
-                    </button>
-                    <button class="theme-btn" id="theme-btn-hacker" onclick="setTheme('hacker', this)">
-                        <span class="theme-dot theme-dot-hacker"></span>
-                        Hacker Green
-                    </button>
-                </div>
-            </div>
-
-            <!-- Идентичность -->
-            <div class="card">
-                <h3>Идентичность</h3>
-                <p class="card-subtitle">Ваш публичный ключ</p>
-                <code id="settings-pubkey" class="pubkey-box">—</code>
-                <button class="btn btn-ghost" onclick="copySettingsPubkey()">⎘ Скопировать ключ</button>
-            </div>
-
-            <!-- База данных -->
-            <div class="card">
-                <h3>База данных</h3>
-                <p class="card-subtitle">Путь к файлу базы данных</p>
-                <code id="db-path-display" class="pubkey-box">—</code>
-            </div>
-
-            <!-- Bootstrap узлы -->
-            <div class="card">
-                <h3>Bootstrap узлы</h3>
-                <p class="card-subtitle">
-                    Узлы для первоначального подключения к сети.<br>
-                    Формат: <code class="inline-code">/dns4/host/tcp/443/wss/p2p/12D3...</code>
-                </p>
-                <div id="bootstrap-list" class="bootstrap-list">
-                    <p class="empty-state">Нет bootstrap узлов</p>
-                </div>
-                <div class="bootstrap-add-row">
-                    <input type="text" id="bootstrap-input"
-                           placeholder="/ip4/31.130.133.38/tcp/9000/ws/p2p/12D3..."
-                           class="bootstrap-input">
-                    <button class="btn btn-primary btn-sm" onclick="addBootstrap()">+ Добавить</button>
-                </div>
-                <div class="bootstrap-dial-row">
-                    <button class="btn btn-ghost btn-sm" onclick="dialBootstrap()">
-                        🔗 Подключиться сейчас
-                    </button>
-                    <span class="dial-hint">Диалит все bootstrap узлы</span>
-                </div>
-            </div>
-
-            <!-- Выход -->
-            <div class="card">
-                <h3>🔒 Выход</h3>
-                <p class="card-subtitle">
-                    Закрыть базу данных и вернуться на экран входа.<br>
-                    Данные останутся сохранены.
-                </p>
-                <button class="btn btn-ghost" onclick="logout()">Выйти из аккаунта</button>
-            </div>
-
-            <!-- Panic Button -->
-            <div class="card warning-box">
-                <h3>⚠ Panic Button</h3>
-                <p>Уничтожает все данные безвозвратно.</p>
-                <button class="btn btn-danger" onclick="panicButton()">💣 Уничтожить данные</button>
-            </div>
-
-            <p id="version-text" class="version-text">Версия: ...</p>
-        </div>
-
-        <!-- Нижняя навигация -->
-        <nav id="main-nav" style="display: none;">
-            <button class="nav-btn active" onclick="showTab('chat', this)">
-                <span class="nav-icon">💬</span>
-                <span class="nav-label">Чат</span>
+          <div id="mnemonic-display" style="display: none; margin-top: 10px">
+            <p class="mnemonic-warning">
+              ⚠ Запишите эти 24 слова — они показываются только один раз
+            </p>
+            <div id="mnemonic-grid" class="mnemonic-grid"></div>
+            <button class="btn btn-success" onclick="closeMnemonicAndEnter()">
+              ✓ Я записал все слова
             </button>
-            <button class="nav-btn" onclick="showTab('network', this)">
-                <span class="nav-icon">📡</span>
-                <span class="nav-label">Сеть</span>
-            </button>
-            <button class="nav-btn" onclick="showTab('diag', this)">
-                <span class="nav-icon">🔬</span>
-                <span class="nav-label">Диагностика</span>
-            </button>
-            <button class="nav-btn" onclick="showTab('settings', this)">
-                <span class="nav-icon">⚙</span>
-                <span class="nav-label">Настройки</span>
-            </button>
-        </nav>
+          </div>
+
+          <div id="init-log" class="init-log"></div>
+        </section>
+      </div>
     </div>
+
+    <!-- ========================================== -->
+    <!-- ЭКРАН 2: ПРИЛОЖЕНИЕ                        -->
+    <!-- ========================================== -->
+    <div id="screen-app">
+      <!-- ВКЛАДКА: ЧАТ -->
+      <div id="tab-chat" class="tab chat-tab active">
+        <!-- Модалка редактирования ника -->
+        <div
+          id="nick-modal-overlay"
+          class="nick-modal-overlay"
+          onclick="closeNickModal(event)"
+        >
+          <div class="nick-modal">
+            <h3>Редактировать контакт</h3>
+            <input
+              type="text"
+              id="nick-input"
+              placeholder="Имя контакта..."
+              maxlength="40"
+            />
+            <textarea
+              id="desc-input"
+              placeholder="Описание (опционально)..."
+              rows="2"
+              style="resize: none"
+            ></textarea>
+            <div class="btn-row">
+              <button class="btn btn-primary btn-sm" onclick="saveNick()">
+                ✓ Сохранить
+              </button>
+              <button
+                class="btn btn-ghost btn-sm"
+                onclick="closeNickModalDirect()"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Левая панель: список чатов -->
+        <div class="chat-sidebar">
+          <div class="sidebar-header">
+            <span class="sidebar-title">Сообщения</span>
+            <button class="btn-icon" onclick="showNewChat()" title="Новый чат">
+              <i data-lucide="square-pen"></i>
+            </button>
+          </div>
+
+          <div class="sidebar-search">
+            <input
+              type="text"
+              id="contact-search"
+              placeholder="🔍  Поиск..."
+              oninput="filterContacts(this.value)"
+            />
+          </div>
+
+          <div id="new-chat-form" style="display: none" class="new-chat-form">
+            <input
+              type="text"
+              id="to-key"
+              placeholder="Публичный ключ получателя..."
+              class="new-chat-input"
+            />
+            <input
+              type="text"
+              id="new-nick-input"
+              placeholder="Имя контакта (необязательно)"
+              class="new-chat-nick"
+            />
+            <button class="btn btn-primary btn-sm" onclick="startChatWithKey()">
+              → Начать чат
+            </button>
+          </div>
+
+          <div id="contact-list" class="contact-list">
+            <p class="empty-state">Нет переписок</p>
+          </div>
+        </div>
+
+        <!-- Правая панель: переписка -->
+        <div class="chat-main">
+          <div class="chat-header">
+            <div class="chat-header-avatar" id="chat-header-avatar"></div>
+            <div class="chat-header-info">
+              <span class="chat-header-name" id="current-chat-name"
+                >Выберите чат</span
+              >
+              <span class="chat-header-key" id="current-chat-key"></span>
+            </div>
+            <div class="chat-header-actions">
+              <button
+                class="chat-action-btn"
+                id="btn-video-call"
+                style="display: none"
+                title="Видеозвонок"
+                onclick="startVideoCall()"
+              >
+                <i data-lucide="video"></i>
+              </button>
+              <button
+                class="chat-action-btn"
+                id="btn-add-contact"
+                style="display: none"
+                title="Добавить в контакты"
+                onclick="addCurrentToContacts()"
+              >
+                <i data-lucide="user-plus"></i>
+              </button>
+              <button
+                class="chat-action-btn"
+                id="btn-chat-menu"
+                style="display: none"
+                title="Меню"
+                onclick="toggleChatMenu()"
+              >
+                <i data-lucide="more-vertical"></i>
+              </button>
+              <div
+                id="chat-menu-dropdown"
+                class="chat-menu-dropdown"
+                style="display: none"
+              >
+                <button onclick="clearChat()">
+                  <i data-lucide="trash-2"></i> Очистить чат
+                </button>
+                <button onclick="copyContactKey()">
+                  <i data-lucide="copy"></i> Скопировать ключ
+                </button>
+                <button onclick="deleteContact()">
+                  <i data-lucide="user-x"></i> Удалить контакт
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="msg-list" class="msg-list">
+            <div class="empty-chat-state">
+              <span class="empty-chat-icon">⬡</span>
+              <p>Выберите контакт слева<br />или начните новый чат</p>
+            </div>
+          </div>
+
+<div class="chat-input-area">
+    <div class="input-toolbar">
+        <button class="toolbar-btn" onclick="formatText('bold')" title="Жирный"><i data-lucide="bold"></i></button>
+        <button class="toolbar-btn" onclick="formatText('italic')" title="Курсив"><i data-lucide="italic"></i></button>
+        <button class="toolbar-btn" onclick="formatText('strike')" title="Зачёркнутый"><i data-lucide="strikethrough"></i></button>
+        <button class="toolbar-btn" onclick="formatText('code')" title="Код"><i data-lucide="code"></i></button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" onclick="attachFile()" title="Прикрепить файл"><i data-lucide="paperclip"></i></button>
+    </div>
+    <div class="input-row">
+        <textarea id="msg-content" placeholder="Сообщение..." rows="1"
+                  onkeydown="if(event.ctrlKey && event.key==='Enter') sendMessage()"
+                  oninput="autoResizeTextarea(this)"></textarea>
+        <button class="btn-send" onclick="sendMessage()" title="Ctrl+Enter"><i data-lucide="send-horizontal"></i></button>
+    </div>
+    <div class="input-hint">
+        <div class="encryption-badge" title="End-to-end шифрование"><i data-lucide="lock"></i> E2E</div>
+        <span>Ctrl+Enter для отправки</span>
+    </div>
+</div>
+        </div>
+      </div>
+
+      <!-- ВКЛАДКА: СЕТЬ -->
+      <div id="tab-network" class="tab tab-scrollable">
+        <div class="tab-header"><h2>P2P Сеть</h2></div>
+
+        <div class="network-status-row">
+          <div class="status-badge" id="p2p-badge">
+            <span class="dot" id="p2p-dot"></span>
+            <span id="p2p-status-text">Остановлен</span>
+          </div>
+          <span id="peer-count-text" class="peer-count">0 пиров</span>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="startP2P()">
+            ▶ Запустить
+          </button>
+          <button class="btn btn-danger" onclick="stopP2P()">
+            ⏹ Остановить
+          </button>
+        </div>
+
+        <div class="card">
+          <h3>Мой публичный ключ</h3>
+          <code id="my-pubkey" class="pubkey-box">Загрузка...</code>
+          <button class="btn btn-ghost" onclick="copyPubkey()">
+            ⎘ Скопировать
+          </button>
+        </div>
+
+        <div class="card">
+          <h3>Активные соединения</h3>
+          <div id="peer-list" class="peer-list">
+            <p class="empty-state">Нет активных соединений</p>
+          </div>
+        </div>
+
+        <h3 class="section-title">Лог событий</h3>
+        <div id="log"></div>
+      </div>
+
+      <!-- ВКЛАДКА: ДИАГНОСТИКА -->
+      <div id="tab-diag" class="tab tab-scrollable">
+        <div class="tab-header"><h2>Диагностика</h2></div>
+
+        <div class="diag-metrics">
+          <div class="diag-metric">
+            <span class="diag-metric-label">Bootstrap нода</span>
+            <span class="diag-metric-value" id="diag-bootstrap-status">—</span>
+          </div>
+          <div class="diag-metric">
+            <span class="diag-metric-label">Пиров</span>
+            <span class="diag-metric-value accent" id="diag-peer-count">0</span>
+          </div>
+          <div class="diag-metric">
+            <span class="diag-metric-label">P2P статус</span>
+            <span class="diag-metric-value" id="diag-p2p-state">—</span>
+          </div>
+          <div class="diag-metric">
+            <span class="diag-metric-label">Версия</span>
+            <span class="diag-metric-value accent" id="diag-version">—</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Идентификация</h3>
+          <p class="card-subtitle">Публичный ключ</p>
+          <code id="diag-pubkey" class="pubkey-box">—</code>
+          <p class="card-subtitle" style="margin-top: 4px">
+            Путь к базе данных
+          </p>
+          <code id="diag-db-path" class="pubkey-box">—</code>
+        </div>
+
+        <div class="card">
+          <h3>Активные пиры</h3>
+          <div id="diag-peer-list" class="peer-list">
+            <p class="empty-state">Нет активных соединений</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Лог событий</h3>
+          <div class="diag-log-controls">
+            <span
+              style="
+                font-size: 11px;
+                color: var(--text-muted);
+                font-family: var(--font-mono);
+              "
+              >Фильтр:</span
+            >
+            <button
+              class="log-filter-btn active"
+              onclick="setLogFilter('all', this)"
+            >
+              Все
+            </button>
+            <button
+              class="log-filter-btn filter-info"
+              onclick="setLogFilter('info', this)"
+            >
+              Info
+            </button>
+            <button
+              class="log-filter-btn filter-success"
+              onclick="setLogFilter('success', this)"
+            >
+              OK
+            </button>
+            <button
+              class="log-filter-btn filter-error"
+              onclick="setLogFilter('error', this)"
+            >
+              Error
+            </button>
+            <button
+              class="log-filter-btn filter-warn"
+              onclick="setLogFilter('warn', this)"
+            >
+              Warn
+            </button>
+          </div>
+          <div id="diag-log" class="diag-log"></div>
+          <button class="btn btn-ghost btn-sm" onclick="copyDiagReport()">
+            ⎘ Копировать отчёт
+          </button>
+        </div>
+      </div>
+
+      <!-- ВКЛАДКА: НАСТРОЙКИ -->
+      <div id="tab-settings" class="tab tab-scrollable">
+        <div class="tab-header"><h2>Настройки</h2></div>
+
+        <div class="card">
+          <h3>Тема оформления</h3>
+          <div class="theme-switcher">
+            <button
+              class="theme-btn active"
+              id="theme-btn-dark"
+              onclick="setTheme('dark', this)"
+            >
+              <span class="theme-dot theme-dot-dark"></span>Dark Terminal
+            </button>
+            <button
+              class="theme-btn"
+              id="theme-btn-light"
+              onclick="setTheme('light', this)"
+            >
+              <span class="theme-dot theme-dot-light"></span>Light
+            </button>
+            <button
+              class="theme-btn"
+              id="theme-btn-hacker"
+              onclick="setTheme('hacker', this)"
+            >
+              <span class="theme-dot theme-dot-hacker"></span>Hacker Green
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Идентичность</h3>
+          <p class="card-subtitle">Ваш публичный ключ</p>
+          <code id="settings-pubkey" class="pubkey-box">—</code>
+          <button class="btn btn-ghost" onclick="copySettingsPubkey()">
+            ⎘ Скопировать ключ
+          </button>
+        </div>
+
+        <div class="card">
+          <h3>База данных</h3>
+          <p class="card-subtitle">Путь к файлу базы данных</p>
+          <code id="db-path-display" class="pubkey-box">—</code>
+        </div>
+
+        <div class="card">
+          <h3>Bootstrap узлы</h3>
+          <p class="card-subtitle">
+            Узлы для первоначального подключения к сети.<br />
+            Формат:
+            <code class="inline-code"
+              >/ip4/31.130.133.38/tcp/9000/ws/p2p/12D3...</code
+            >
+          </p>
+          <div id="bootstrap-list" class="bootstrap-list">
+            <p class="empty-state">Нет bootstrap узлов</p>
+          </div>
+          <div class="bootstrap-add-row">
+            <input
+              type="text"
+              id="bootstrap-input"
+              placeholder="/ip4/31.130.133.38/tcp/9000/ws/p2p/12D3..."
+              class="bootstrap-input"
+            />
+            <button class="btn btn-primary btn-sm" onclick="addBootstrap()">
+              + Добавить
+            </button>
+          </div>
+          <div class="bootstrap-dial-row">
+            <button class="btn btn-ghost btn-sm" onclick="dialBootstrap()">
+              🔗 Подключиться
+            </button>
+            <span class="dial-hint">Диалит все bootstrap узлы</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>🔒 Выход</h3>
+          <p class="card-subtitle">
+            Закрыть базу данных и вернуться на экран входа.
+          </p>
+          <button class="btn btn-ghost" onclick="logout()">
+            Выйти из аккаунта
+          </button>
+        </div>
+
+        <div class="card warning-box">
+          <h3>⚠ Panic Button</h3>
+          <p>Уничтожает все данные безвозвратно.</p>
+          <button class="btn btn-danger" onclick="panicButton()">
+            💣 Уничтожить данные
+          </button>
+        </div>
+
+        <p id="version-text" class="version-text">Версия: ...</p>
+      </div>
+    </div>
+    <!-- /screen-app -->
 
     <script src="js/main.js"></script>
     <script src="js/database.js"></script>
@@ -373,5 +535,11 @@
     <script src="js/messaging.js"></script>
     <script src="js/contacts.js"></script>
     <script src="js/diagnostics.js"></script>
-</body>
+    <script src="js/neural.js"></script>
+    <script src="js/chat-actions.js"></script>
+    <script src="js/formatting.js"></script>
+    <script>
+      lucide.createIcons();
+    </script>
+  </body>
 </html>

@@ -89,3 +89,35 @@ window.saveNickOnCreate = function(pubkey, nick) {
     if (!pubkey || !nick) return;
     window.saveContactNick(pubkey, nick, '');
 }
+
+// ── Tauri интеграция ─────────────────────────────────────────
+
+// Добавить контакт в базу данных
+window.addContactToDb = async function(pubkey, nickname) {
+    const invoke = window.__TAURI__.core.invoke;
+    try {
+        await invoke('add_contact', { publicKey: pubkey, nickname: nickname || '' });
+        window.log('Контакт сохранён в базу', 'success');
+    } catch (e) {
+        window.log('Ошибка сохранения контакта: ' + e, 'error');
+    }
+}
+
+// Загрузить контакты из базы данных
+window.loadContactsFromDb = async function() {
+    const invoke = window.__TAURI__.core.invoke;
+    try {
+        const contacts = await invoke('get_contacts');
+        if (contacts.length === 0) {
+            window.log('Контактов в базе нет', 'info');
+        } else {
+            contacts.forEach(c => {
+                window.saveContactNick(c.public_key, c.nickname, '');
+                window.log(`Контакт загружен: ${c.nickname || c.public_key.slice(0,8)}...`, 'success');
+            });
+        }
+    } catch (e) {
+        window.log('Ошибка загрузки контактов: ' + e, 'error');
+    }
+}
+

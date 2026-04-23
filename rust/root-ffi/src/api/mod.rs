@@ -26,7 +26,7 @@ pub mod utils;
 
 // ── Реэкспорт ────────────────────────────────────────────────
 pub use types::{
-    ApiError, BalanceInfo, IdentityInfo, MessageInfo, NodeStatus, P2pWarning, TxResult, VestingInfo,UnlockResult,
+    ApiError, BalanceInfo, ContactInfo, IdentityInfo, MessageInfo, NodeStatus, P2pWarning, TxResult, VestingInfo, UnlockResult,
 };
 
 // ── Единая точка входа для flutter_rust_bridge ───────────────
@@ -64,16 +64,15 @@ impl RootApi {
 
     #[flutter_rust_bridge::frb(sync)]
     pub fn is_panic_activated() -> bool {
-        crate::api::database::is_panic_activated()
-            .unwrap_or(false)  // Политика: при ошибке → "всё ок"
+        crate::api::database::is_panic_activated().unwrap_or(false) // Политика: при ошибке → "всё ок"
     }
 
     // ── Messaging ────────────────────────────────────────────
     #[flutter_rust_bridge::frb(sync)]
     pub fn send_message(to_key: String, content: String) -> Result<u64, ApiError> {
-        messaging::send_message(to_key, content)  // ← 2 аргумента
+        messaging::send_message(to_key, content) // ← 2 аргумента
     }
-    
+
     pub fn get_messages() -> Result<Vec<MessageInfo>, ApiError> {
         messaging::get_messages()
     }
@@ -88,7 +87,7 @@ impl RootApi {
     pub fn add_contact(public_key: String, nickname: String) -> Result<(), ApiError> {
         contacts::add_contact(public_key, nickname)
     }
-    pub fn get_contacts() -> Result<Vec<crate::storage::Contact>, ApiError> {
+    pub fn get_contacts() -> Result<Vec<types::ContactInfo>, ApiError> {
         contacts::get_contacts()
     }
 
@@ -124,7 +123,7 @@ impl RootApi {
     // ── P2P ──────────────────────────────────────────────────
     pub fn start_p2p_node() -> Result<String, ApiError> {
         p2p::start_p2p_node()
-        }
+    }
 
     #[flutter_rust_bridge::frb(sync)]
     pub fn send_p2p_message(recipient_pubkey: String, content: String) -> Result<(), ApiError> {
