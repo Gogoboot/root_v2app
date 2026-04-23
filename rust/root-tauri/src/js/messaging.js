@@ -262,7 +262,7 @@ function renderConversation(msgs, partnerKey) {
             ${divider}
             <div class="msg-wrapper ${direction}">
                 ${senderLine}
-                <div class="msg-bubble">${escapeHtml(m.content)}</div>
+                <div class="msg-bubble">${renderMarkdown(m.content)}</div>
                 <div class="msg-meta">
                     <span class="msg-time">${time}</span>
                     ${statusHtml}
@@ -370,4 +370,18 @@ function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
+}
+
+function renderMarkdown(text) {
+    if (typeof marked === 'undefined' || !window.isMarkdownEnabled || !window.isMarkdownEnabled()) {
+        return escapeHtml(text);
+    }
+    try {
+        return marked.parse(text, {
+            breaks: true,
+            gfm: true,
+        });
+    } catch {
+        return escapeHtml(text);
+    }
 }

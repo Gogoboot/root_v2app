@@ -928,13 +928,6 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
     flex-shrink: 0;
 }
 
-.input-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-    padding: 8px 16px 6px;
-}
-
 .chat-input-area {
     border-top: 1px solid var(--border);
     background: var(--header-bg);
@@ -942,6 +935,7 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
     display: flex;
     flex-direction: column;
     padding: 0;
+    width: 100%;
 }
 
 .chat-input-area textarea {
@@ -949,4 +943,61 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
     font-size: 14px; border-radius: var(--radius-lg);
     padding: 10px 16px; line-height: 1.5;
     background: var(--input-bg); border: 1px solid var(--border);
+}
+
+.input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 10px 16px 6px;
+    width: 100%;
+}
+
+.input-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 16px 6px;
+    border-top: 1px solid var(--border);
+    width: 100%;
+}
+
+.input-hint {
+    font-size: 10px; color: var(--text-muted);
+    padding: 2px 16px 6px;
+    font-family: var(--font-mono); background: var(--header-bg); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%;
+}
+
+.msg-bubble strong { font-weight: 600; }
+.msg-bubble em { font-style: italic; }
+.msg-bubble del { text-decoration: line-through; opacity: 0.8; }
+.msg-bubble code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: rgba(0,0,0,0.25);
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+.msg-bubble p { margin: 0; }
+.msg-bubble pre {
+    background: rgba(0,0,0,0.3);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    overflow-x: auto;
+    margin: 4px 0;
+}
+emoji-picker {
+    --background: var(--bg-raised);
+    --border-color: var(--border);
+    --indicator-color: var(--accent);
+    --input-border-color: var(--border);
+    --input-font-color: var(--text-primary);
+    --input-placeholder-color: var(--text-muted);
+    --category-font-color: var(--text-secondary);
+    height: 350px;
+    width: 320px;
 }

@@ -6,6 +6,11 @@
     <title>TOOR v2.0 — Desktop</title>
     <link rel="stylesheet" href="css/style.css" />
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"
+      type="module"
+    ></script>
   </head>
   <body>
     <!-- ========================================== -->
@@ -276,26 +281,99 @@
             </div>
           </div>
 
-<div class="chat-input-area">
-    <div class="input-toolbar">
-        <button class="toolbar-btn" onclick="formatText('bold')" title="Жирный"><i data-lucide="bold"></i></button>
-        <button class="toolbar-btn" onclick="formatText('italic')" title="Курсив"><i data-lucide="italic"></i></button>
-        <button class="toolbar-btn" onclick="formatText('strike')" title="Зачёркнутый"><i data-lucide="strikethrough"></i></button>
-        <button class="toolbar-btn" onclick="formatText('code')" title="Код"><i data-lucide="code"></i></button>
-        <div class="toolbar-sep"></div>
-        <button class="toolbar-btn" onclick="attachFile()" title="Прикрепить файл"><i data-lucide="paperclip"></i></button>
-    </div>
-    <div class="input-row">
-        <textarea id="msg-content" placeholder="Сообщение..." rows="1"
-                  onkeydown="if(event.ctrlKey && event.key==='Enter') sendMessage()"
-                  oninput="autoResizeTextarea(this)"></textarea>
-        <button class="btn-send" onclick="sendMessage()" title="Ctrl+Enter"><i data-lucide="send-horizontal"></i></button>
-    </div>
-    <div class="input-hint">
-        <div class="encryption-badge" title="End-to-end шифрование"><i data-lucide="lock"></i> E2E</div>
-        <span>Ctrl+Enter для отправки</span>
-    </div>
-</div>
+          <div class="chat-input-area">
+            <div class="input-row">
+              <textarea
+                id="msg-content"
+                placeholder="Сообщение..."
+                rows="1"
+                onkeydown="
+                  if (event.ctrlKey && event.key === 'Enter') sendMessage();
+                "
+                oninput="autoResizeTextarea(this)"
+              ></textarea>
+              <button
+                class="btn-send"
+                onclick="sendMessage()"
+                title="Ctrl+Enter"
+              >
+                <i data-lucide="send-horizontal"></i>
+              </button>
+            </div>
+            <div class="input-toolbar">
+              <button
+                class="toolbar-btn"
+                onclick="attachFile()"
+                title="Прикрепить файл"
+              >
+                <i data-lucide="paperclip"></i>
+              </button>
+              <div class="toolbar-sep"></div>
+              <button
+                class="toolbar-btn"
+                onclick="formatText('bold')"
+                title="Жирный"
+              >
+                <i data-lucide="bold"></i>
+              </button>
+              <button
+                class="toolbar-btn"
+                onclick="formatText('italic')"
+                title="Курсив"
+              >
+                <i data-lucide="italic"></i>
+              </button>
+              <button
+                class="toolbar-btn"
+                onclick="formatText('strike')"
+                title="Зачёркнутый"
+              >
+                <i data-lucide="strikethrough"></i>
+              </button>
+              <button
+                class="toolbar-btn"
+                onclick="formatText('code')"
+                title="Код"
+              >
+                <i data-lucide="code"></i>
+              </button>
+              <button
+                class="toolbar-btn"
+                id="btn-emoji"
+                onclick="toggleEmojiPicker()"
+                title="Эмодзи"
+              >
+                <i data-lucide="smile"></i>
+              </button>
+              <div
+                id="emoji-picker-container"
+                style="
+                  display: none;
+                  position: absolute;
+                  bottom: 120px;
+                  right: 16px;
+                  z-index: 100;
+                "
+              >
+                <emoji-picker></emoji-picker>
+              </div>
+              <div class="toolbar-sep"></div>
+              <button
+                class="toolbar-btn"
+                id="btn-markdown-toggle"
+                onclick="toggleMarkdown()"
+                title="Markdown"
+              >
+                M↓
+              </button>
+            </div>
+            <div class="input-hint">
+              <div class="encryption-badge" title="End-to-end шифрование">
+                <i data-lucide="lock"></i> E2E
+              </div>
+              <span>Ctrl+Enter для отправки</span>
+            </div>
+          </div>
         </div>
       </div>
 
