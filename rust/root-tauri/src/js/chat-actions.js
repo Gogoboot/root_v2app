@@ -47,3 +47,26 @@ window.deleteContact = function() {
     window.log('Удалить контакт — в разработке', 'info');
     document.getElementById('chat-menu-dropdown').style.display = 'none';
 }
+
+let replyToMsgId = null;
+
+window.replyToMessage = function(msgId, content, fromKey) {
+    replyToMsgId = msgId;
+    const preview = document.getElementById('reply-preview');
+    const previewText = document.getElementById('reply-preview-text');
+    if (preview && previewText) {
+        previewText.textContent = '↩ ' + content;
+        preview.classList.add('visible');
+    }
+    document.getElementById('msg-content').focus();
+}
+
+window.cancelReply = function() {
+    replyToMsgId = null;
+    const preview = document.getElementById('reply-preview');
+    if (preview) preview.classList.remove('visible');
+}
+
+window.getReplyId = function() {
+    return replyToMsgId;
+}

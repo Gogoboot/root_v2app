@@ -42,6 +42,11 @@
         <span class="icon-label">Диагн.</span>
       </button>
 
+<button class="icon-btn" id="nav-profile" onclick="showTab('profile', this)">
+  <span class="icon-glyph"><i data-lucide="user-circle"></i></span>
+  <span class="icon-label">Профиль</span>
+</button>
+
       <div class="iconbar-sep"></div>
 
       <button
@@ -373,6 +378,14 @@
               </div>
               <span>Ctrl+Enter для отправки</span>
             </div>
+            <div id="reply-preview" class="reply-preview">
+              <span class="reply-preview-text" id="reply-preview-text"
+                >↩ Ответ на сообщение</span
+              >
+              <button class="reply-preview-cancel" onclick="cancelReply()">
+                ×
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -603,6 +616,38 @@
 
         <p id="version-text" class="version-text">Версия: ...</p>
       </div>
+
+<!-- ВКЛАДКА: ПРОФИЛЬ -->
+<div id="tab-profile" class="tab tab-scrollable">
+  <div class="tab-header"><h2>Мой профиль</h2></div>
+
+  <div class="card profile-card">
+    <div class="profile-avatar-wrap">
+      <div id="profile-avatar" class="profile-avatar"></div>
+    </div>
+    <div class="profile-nick" id="profile-nick">—</div>
+    <div class="profile-nick-edit">
+      <input type="text" id="profile-nick-input" placeholder="Введите имя..." maxlength="40"
+             onkeydown="if(event.key==='Enter') saveProfileNick()"/>
+      <button class="btn btn-primary btn-sm" onclick="saveProfileNick()">✓</button>
+    </div>
+    <div class="profile-pubkey-short" id="profile-pubkey-short">—</div>
+  </div>
+
+  <div class="card">
+    <h3>Публичный ключ</h3>
+    <code id="profile-pubkey-full" class="pubkey-box">—</code>
+    <button class="btn btn-ghost profile-copy-btn" onclick="copyProfileKey()">⎘ Скопировать</button>
+  </div>
+
+  <div class="card">
+    <h3>QR-код</h3>
+    <p class="card-subtitle">Покажите другому пользователю для добавления в контакты</p>
+    <div id="profile-qr" class="profile-qr-wrap"></div>
+    <button class="btn btn-ghost" onclick="refreshProfileQR()">↺ Обновить</button>
+  </div>
+</div>
+
     </div>
     <!-- /screen-app -->
 
@@ -616,6 +661,7 @@
     <script src="js/neural.js"></script>
     <script src="js/chat-actions.js"></script>
     <script src="js/formatting.js"></script>
+    <script src="js/profile.js"></script>
     <script>
       lucide.createIcons();
     </script>

@@ -232,22 +232,10 @@ function renderConversation(msgs, partnerKey) {
       }
 
       // Статус сообщения (для исходящих)
-      let statusHtml = "";
-      if (isOutgoing) {
-        const status = m.status || "sent";
-        const icons = {
-          sent: { icon: "◻", cls: "msg-status-sent", title: "Отправлено" },
-          pending: { icon: "⏳", cls: "msg-status-pending", title: "Ожидание" },
-          delivered: {
-            icon: "✓",
-            cls: "msg-status-delivered",
-            title: "Доставлено",
-          },
-          error: { icon: "⚠", cls: "msg-status-error", title: "Ошибка" },
-        };
-        const s = icons[status] || icons.sent;
-        statusHtml = `<span class="msg-status-icon ${s.cls}" title="${s.title}">${s.icon}</span>`;
-      }
+let statusHtml = '';
+if (isOutgoing) {
+    statusHtml = `<span class="msg-status-icon msg-status-sent" title="Отправлено"><i data-lucide="check"></i></span>`;
+}
 
       // Имя отправителя для входящих
       const senderNick =
@@ -258,10 +246,18 @@ function renderConversation(msgs, partnerKey) {
         ? `<div class="msg-sender">${escapeHtml(senderNick)}</div>`
         : "";
 
-      return `
+const replyQuote = m.reply_to_content
+    ? `<div class="msg-reply-quote">↩ ${escapeHtml(m.reply_to_content.slice(0, 60))}${m.reply_to_content.length > 60 ? '…' : ''}</div>`
+    : '';
+
+return `
             ${divider}
-            <div class="msg-wrapper ${direction}">
+            <div class="msg-wrapper ${direction}" data-msg-id="${m.id}">
                 ${senderLine}
+                <div class="msg-actions">
+                    <button class="msg-action-btn" onclick="replyToMessage(${m.id}, '${escapeHtml(m.content.slice(0,60)).replace(/'/g, "\\'")}', '${escapeHtml(m.from_key)}')" title="Ответить"><i data-lucide="reply"></i></button>
+                </div>
+                ${replyQuote}
                 <div class="msg-bubble">${renderMarkdown(m.content)}</div>
                 <div class="msg-meta">
                     <span class="msg-time">${time}</span>
@@ -274,6 +270,7 @@ function renderConversation(msgs, partnerKey) {
 
   list.innerHTML = html;
   list.scrollTop = list.scrollHeight;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // ── Отправка ─────────────────────────────────────────────────
@@ -299,6 +296,7 @@ window.sendMessage = async function () {
     const textarea = document.getElementById("msg-content");
     textarea.value = "";
     textarea.style.height = "auto";
+    //if (window.cancelReply) window.cancelReply();
 
     if (currentChatKey !== toKey) {
       currentChatKey = toKey;

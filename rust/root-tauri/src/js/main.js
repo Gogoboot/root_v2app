@@ -137,6 +137,9 @@ function showTab(tabName, btnElement) {
   if (tabName === "diag") {
     window.refreshDiagnostics && window.refreshDiagnostics();
   }
+  if (tabName === 'profile') {
+  window.loadProfile && window.loadProfile();
+  }
 }
 
 window.showTab = showTab;

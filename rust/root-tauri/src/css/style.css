@@ -1001,3 +1001,148 @@ emoji-picker {
     height: 350px;
     width: 320px;
 }
+
+.msg-wrapper { position: relative; }
+
+.msg-actions {
+    display: none;
+    position: absolute;
+    top: 0;
+    gap: 4px;
+    padding: 0 4px;
+}
+.msg-wrapper.outgoing .msg-actions { left: -36px; }
+.msg-wrapper.incoming .msg-actions { right: -36px; }
+.msg-wrapper:hover .msg-actions
+,.msg-actions:hover { display: flex; }
+
+.msg-action-btn {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 0.5px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s;
+}
+.msg-action-btn:hover { background: var(--bg-hover); color: var(--accent); }
+.msg-action-btn svg { width: 13px; height: 13px; stroke: currentColor; }
+
+.reply-preview {
+    display: none;
+    margin: 0 16px 6px;
+    padding: 8px 12px;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    background: var(--bg-raised);
+    font-size: 12px;
+    color: var(--text-secondary);
+    position: relative;
+}
+.reply-preview.visible { display: flex; align-items: center; justify-content: space-between; }
+.reply-preview-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.reply-preview-cancel {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-size: 16px; padding: 0 0 0 8px;
+    line-height: 1;
+}
+.reply-preview-cancel:hover { color: var(--red); }
+
+.msg-reply-quote {
+    font-size: 11px;
+    color: var(--text-secondary);
+    background: var(--bg-raised);
+    border-left: 3px solid var(--accent-dim);
+    padding: 4px 8px;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+/* ============================================================
+   ПРОФИЛЬ — добавить в конец style.css
+============================================================ */
+
+/* ── Карточка профиля ───────────────────────────────────────── */
+.profile-card {
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+    padding: 28px 20px 20px;
+}
+
+.profile-avatar-wrap {
+    position: relative;
+}
+
+.profile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -1px;
+    user-select: none;
+    box-shadow: 0 0 0 3px var(--bg-surface), 0 0 0 5px var(--border);
+    transition: box-shadow 0.25s;
+}
+
+.profile-avatar:hover {
+    box-shadow: 0 0 0 3px var(--bg-surface), 0 0 0 5px var(--accent-dim);
+}
+
+.profile-nick {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    min-height: 26px;
+}
+
+.profile-pubkey-short {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+
+/* ── Редактирование ника ────────────────────────────────────── */
+.profile-nick-edit {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+}
+
+.profile-nick-edit input {
+    flex: 1;
+    font-size: 13px;
+    padding: 7px 12px;
+    text-align: center;
+}
+
+/* ── QR-код ─────────────────────────────────────────────────── */
+.profile-qr-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 0 8px;
+    min-height: 220px;
+}
+
+.profile-qr-wrap canvas,
+.profile-qr-wrap img {
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    padding: 10px;
+    background: var(--bg-base);
+    display: block;
+}
